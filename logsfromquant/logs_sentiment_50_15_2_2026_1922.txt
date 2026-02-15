@@ -1,0 +1,670 @@
+1
+|
+4:46:59
+:
+Built project 'Calculating Tan Dogfish' in Cloud for Lean Engine 2.5.0.0.17533, with Id '029a63-f7a618'
+2
+|
+4:47:30
+:
+Built project 'Calculating Tan Dogfish' in Cloud for Lean Engine 2.5.0.0.17533, with Id 'c4ed21-6fd985'
+3
+|
+4:47:32
+:
+Received backtest 'Fat Magenta Pigeon' request
+4
+|
+4:47:39
+:
+Initializing algorithm...
+5
+|
+4:47:39
+:
+Launching analysis for 55e7ca6a4d04847db46fd8162f1f5bdd with LEAN Engine v2.5.0.0.17533
+6
+|
+4:47:39
+:
+2020-01-01 00:00:00 Warning: SetBenchmark(SPY): no existing symbol found, benchmark security will be added with Equity type.
+7
+|
+4:47:39
+:
+2020-01-01 00:00:00 Warning: no existing symbol found for ticker SPY, it will be created with Equity type.
+8
+|
+4:47:39
+:
+Backtest deployed in 6.037 seconds
+9
+|
+4:47:50
+:
+Built project 'Calculating Tan Dogfish' in Cloud for Lean Engine 2.5.0.0.17533, with Id '7c9872-6fd985'
+10
+|
+4:48:05
+:
+Built project 'Calculating Tan Dogfish' in Cloud for Lean Engine 2.5.0.0.17533, with Id 'c1295d-6fd985'
+11
+|
+4:49:53
+:
+Built project 'Calculating Tan Dogfish' in Cloud for Lean Engine 2.5.0.0.17533, with Id '006ef1-6fd985'
+12
+|
+4:57:27
+:
+Algorithm '55e7ca6a4d04847db46fd8162f1f5bdd' completed
+13
+|
+4:57:27
+:
+2024-12-31 23:52:18 SENTIMENT RESULTS: Return=0.00% Signals=0 Trades=0 Final=$100,000
+14
+|
+4:57:27
+:
+Algorithm Id:(55e7ca6a4d04847db46fd8162f1f5bdd) completed in 590.10 seconds at 24k data points per second. Processing total of 14,311,523 data points.
+15
+|
+4:59:47
+:
+Built project 'Calculating Tan Dogfish' in Cloud for Lean Engine 2.5.0.0.17533, with Id 'bade7d-d03da1'
+16
+|
+4:59:48
+:
+Received backtest 'Energetic Asparagus Fox' request
+17
+|
+4:59:55
+:
+Initializing algorithm...
+18
+|
+4:59:55
+:
+Launching analysis for 508c1eb9e91c4d54bac5592d64edea74 with LEAN Engine v2.5.0.0.17533
+19
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for AAPL: AAPL.TiingoNews
+20
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for MSFT: MSFT.TiingoNews
+21
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for NVDA: NVDA.TiingoNews
+22
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for GOOGL: GOOG.TiingoNews
+23
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for AMZN: AMZN.TiingoNews
+24
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for META: FB.TiingoNews
+25
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for TSLA: TSLA.TiingoNews
+26
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for JPM: CMB.TiingoNews
+27
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for BAC: NB.TiingoNews
+28
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for GS: GS.TiingoNews
+29
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for JNJ: JNJ.TiingoNews
+30
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for UNH: UNH.TiingoNews
+31
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for XOM: XON.TiingoNews
+32
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for CVX: CHV.TiingoNews
+33
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for WMT: WMT.TiingoNews
+34
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for KO: KO.TiingoNews
+35
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for DIS: DIS.TiingoNews
+36
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for CAT: CAT.TiingoNews
+37
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for BA: BA.TiingoNews
+38
+|
+4:59:55
+:
+2020-01-01 00:00:00 Added TiingoNews for NFLX: NFLX.TiingoNews
+39
+|
+4:59:55
+:
+2020-01-01 00:00:00 Warning: SetBenchmark(SPY): no existing symbol found, benchmark security will be added with Equity type.
+40
+|
+4:59:55
+:
+2020-01-01 00:00:00 Warning: no existing symbol found for ticker SPY, it will be created with Equity type.
+41
+|
+4:59:55
+:
+2020-01-01 00:00:00 >>> INIT DONE
+42
+|
+4:59:55
+:
+2020-01-01 00:55:20 >>> on_data call #1, keys count=1
+43
+|
+4:59:55
+:
+2020-01-01 00:55:20 >>> NEWS for GOOGL: type=TiingoNews
+44
+|
+4:59:55
+:
+2020-01-01 00:55:20 >>> ARTICLE: GOOGL score=0.00 '2020: Welcome to the Year of Fitness'
+45
+|
+4:59:55
+:
+2020-01-01 00:56:48 >>> on_data call #2, keys count=1
+46
+|
+4:59:55
+:
+2020-01-01 00:56:48 >>> NEWS for GOOGL: type=TiingoNews
+47
+|
+4:59:55
+:
+2020-01-01 00:56:48 >>> ARTICLE: GOOGL score=0.00 'Travel's 20 best places to visit in 2020'
+48
+|
+4:59:55
+:
+2020-01-01 01:00:50 >>> on_data call #3, keys count=1
+49
+|
+4:59:55
+:
+2020-01-01 01:00:50 >>> NEWS for NFLX: type=TiingoNews
+50
+|
+4:59:55
+:
+2020-01-01 01:00:50 >>> ARTICLE: NFLX score=0.00 'Messiah on Netflix cast: Who is in the cast of Messiah?'
+51
+|
+4:59:55
+:
+2020-01-01 01:00:54 >>> NEWS for NFLX: type=TiingoNews
+52
+|
+4:59:55
+:
+2020-01-01 01:00:54 >>> ARTICLE: NFLX score=0.00 'Messiah Netflix release date: When does it start? How many e'
+53
+|
+4:59:55
+:
+2020-01-01 01:01:06 >>> NEWS for NFLX: type=TiingoNews
+54
+|
+4:59:55
+:
+2020-01-01 01:01:06 >>> ARTICLE: NFLX score=0.00 'Spinning Out Netflix streaming: How to watch online and down'
+55
+|
+4:59:55
+:
+Backtest deployed in 3.261 seconds
+56
+|
+5:05:36
+:
+Algorithm '508c1eb9e91c4d54bac5592d64edea74' completed
+57
+|
+5:05:36
+:
+2024-12-31 23:52:18 RESULTS: Return=57.42% Signals=1283 Trades=1203 NewsReceived=4485570 DataCalls=3856403 Final=$153,526
+58
+|
+5:05:36
+:
+Algorithm Id:(508c1eb9e91c4d54bac5592d64edea74) completed in 341.90 seconds at 42k data points per second. Processing total of 14,311,523 data points.
+59
+|
+5:09:27
+:
+Built project 'Calculating Tan Dogfish' in Cloud for Lean Engine 2.5.0.0.17533, with Id 'a1bf02-1523e9'
+60
+|
+5:09:28
+:
+Received backtest 'Determined Red Orange Donkey' request
+61
+|
+5:09:33
+:
+Initializing algorithm...
+62
+|
+5:09:33
+:
+Launching analysis for 5d2c7c717f56b7065b607bc446eb52ac with LEAN Engine v2.5.0.0.17533
+63
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for AAPL: AAPL.TiingoNews
+64
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for MSFT: MSFT.TiingoNews
+65
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for NVDA: NVDA.TiingoNews
+66
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for GOOGL: GOOG.TiingoNews
+67
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for AMZN: AMZN.TiingoNews
+68
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for META: FB.TiingoNews
+69
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for TSLA: TSLA.TiingoNews
+70
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for NFLX: NFLX.TiingoNews
+71
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for CRM: CRM.TiingoNews
+72
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for ADBE: ADBE.TiingoNews
+73
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for ORCL: ORCL.TiingoNews
+74
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for INTC: INTC.TiingoNews
+75
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for AMD: AMD.TiingoNews
+76
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for AVGO: AVGO.TiingoNews
+77
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for QCOM: QCOM.TiingoNews
+78
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for JPM: CMB.TiingoNews
+79
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for BAC: NB.TiingoNews
+80
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for GS: GS.TiingoNews
+81
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for MS: MWD.TiingoNews
+82
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for WFC: NOB.TiingoNews
+83
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for BRK.B: BRKB.TiingoNews
+84
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for V: V.TiingoNews
+85
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for MA: MA.TiingoNews
+86
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for JNJ: JNJ.TiingoNews
+87
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for UNH: UNH.TiingoNews
+88
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for PFE: PFE.TiingoNews
+89
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for ABBV: ABBV.TiingoNews
+90
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for MRK: MRK.TiingoNews
+91
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for LLY: LLY.TiingoNews
+92
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for TMO: TMO.TiingoNews
+93
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for WMT: WMT.TiingoNews
+94
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for KO: KO.TiingoNews
+95
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for PEP: PEP.TiingoNews
+96
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for PG: PG.TiingoNews
+97
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for COST: COST.TiingoNews
+98
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for HD: HD.TiingoNews
+99
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for NKE: NKE.TiingoNews
+100
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for MCD: MCD.TiingoNews
+101
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for XOM: XON.TiingoNews
+102
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for CVX: CHV.TiingoNews
+103
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for COP: P.TiingoNews
+104
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for CAT: CAT.TiingoNews
+105
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for BA: BA.TiingoNews
+106
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for HON: ALD.TiingoNews
+107
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for UPS: UPS.TiingoNews
+108
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for GE: GE.TiingoNews
+109
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for DIS: DIS.TiingoNews
+110
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for CMCSA: CMCSA.TiingoNews
+111
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for T: SBC.TiingoNews
+112
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for VZ: BEL.TiingoNews
+113
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for PYPL: PYPL.TiingoNews
+114
+|
+5:09:33
+:
+2020-01-01 00:00:00 Added TiingoNews for SQ: SQ.TiingoNews
+115
+|
+5:09:33
+:
+2020-01-01 00:00:00 Warning: SetBenchmark(SPY): no existing symbol found, benchmark security will be added with Equity type.
+116
+|
+5:09:33
+:
+2020-01-01 00:00:00 Warning: no existing symbol found for ticker SPY, it will be created with Equity type.
+117
+|
+5:09:33
+:
+2020-01-01 00:00:00 >>> INIT DONE
+118
+|
+5:09:33
+:
+2020-01-01 00:33:45 >>> on_data call #1, keys count=1
+119
+|
+5:09:33
+:
+2020-01-01 00:33:45 >>> NEWS for BRK.B: type=TiingoNews
+120
+|
+5:09:33
+:
+2020-01-01 00:33:45 >>> ARTICLE: BRK.B score=0.00 'Does CHASYS (KRX:033250) Have A Healthy Balance Sheet?'
+121
+|
+5:09:33
+:
+2020-01-01 00:55:20 >>> on_data call #2, keys count=1
+122
+|
+5:09:33
+:
+2020-01-01 00:55:20 >>> NEWS for GOOGL: type=TiingoNews
+123
+|
+5:09:33
+:
+2020-01-01 00:55:20 >>> ARTICLE: GOOGL score=0.00 '2020: Welcome to the Year of Fitness'
+124
+|
+5:09:33
+:
+2020-01-01 00:56:48 >>> on_data call #3, keys count=1
+125
+|
+5:09:33
+:
+2020-01-01 00:56:48 >>> NEWS for GOOGL: type=TiingoNews
+126
+|
+5:09:33
+:
+2020-01-01 00:56:48 >>> ARTICLE: GOOGL score=0.00 'Travel's 20 best places to visit in 2020'
+127
+|
+5:09:33
+:
+2020-01-01 01:00:50 >>> NEWS for NFLX: type=TiingoNews
+128
+|
+5:09:33
+:
+2020-01-01 01:00:50 >>> ARTICLE: NFLX score=0.00 'Messiah on Netflix cast: Who is in the cast of Messiah?'
+129
+|
+5:09:33
+:
+2020-01-01 01:00:54 >>> NEWS for NFLX: type=TiingoNews
+130
+|
+5:09:33
+:
+2020-01-01 01:00:54 >>> ARTICLE: NFLX score=0.00 'Messiah Netflix release date: When does it start? How many e'
+131
+|
+5:09:34
+:
+Backtest deployed in 4.431 seconds
+132
+|
+5:21:50
+:
+Algorithm '5d2c7c717f56b7065b607bc446eb52ac' completed
+133
+|
+5:21:50
+:
+2024-12-31 23:52:18 RESULTS: Return=92.99% Signals=10394 Trades=4982 NewsReceived=6790394 DataCalls=5084184 Final=$182,107
+134
+|
+5:21:50
+:
+Algorithm Id:(5d2c7c717f56b7065b607bc446eb52ac) completed in 737.54 seconds at 44k data points per second. Processing total of 32,256,041 data points.
