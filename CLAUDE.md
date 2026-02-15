@@ -45,6 +45,7 @@ This repo is a **strategy research workspace**, not infrastructure code.
 ├── strategies/                  # QuantConnect algorithm files (Python)
 │   ├── congressional_trading/   # Hypothesis 1: Congressional copy-trading
 │   ├── directional_classifier/  # Hypothesis 2: Global directional model
+│   ├── sentiment_price/         # Hypothesis 4: Sentiment + price history
 │   └── combined_signal/         # Hypothesis 3: Combined signals
 ├── research/                    # Analysis results, backtest reports
 │   ├── backtest_results/
@@ -104,6 +105,14 @@ A master's thesis comparing two prediction-based trading approaches. Key takeawa
 - **Signal**: Congressional buy + directional classifier agrees = high confidence trade
 - **Rationale**: Uncorrelated signals should improve precision
 - **Test**: Does combining reduce drawdown and improve Sharpe vs either signal alone?
+
+### Hypothesis 4: Sentiment + Price History
+- **Signal**: News sentiment (Tiingo News in QC) combined with price action (MA alignment, RSI, MACD)
+- **Logic**: Positive sentiment spike + bullish trend → BUY; sentiment reversal → early EXIT
+- **Data**: Tiingo News (article-level, included in QC) + standard OHLCV
+- **Scoring**: Keyword-based sentiment baseline (upgrade to FinBERT later)
+- **Risk**: Early exit on sentiment reversal (declining + negative sentiment → sell)
+- **Success criteria**: Better risk-adjusted returns than price-only strategy
 
 ## Alternative Data Pipeline (Future — Notebook-based)
 For adding custom data sources like news sentiment, semantic search over articles, etc.
