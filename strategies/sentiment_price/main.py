@@ -10,7 +10,7 @@ class SentimentPriceAlgorithm(QCAlgorithm):
     def initialize(self):
         self.set_start_date(2020, 1, 1)
         self.set_end_date(2024, 12, 31)
-        self.set_cash(100_000)
+        self.set_cash(100_000)  # Only used in backtest; live uses actual IBKR balance
 
         self.holding_period = 5
         self.sentiment_lookback = 2
@@ -215,8 +215,9 @@ class SentimentPriceAlgorithm(QCAlgorithm):
             if price <= 0:
                 continue
 
-            quantity = int(total_value * self.position_size_pct / price)
-            if quantity <= 0:
+            # Use fractional shares for small accounts
+            quantity = round(total_value * self.position_size_pct / price, 4)
+            if quantity < 0.001:
                 continue
 
             self.market_order(symbol, quantity)
