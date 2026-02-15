@@ -1,4 +1,4 @@
-"""Congressional Copy-Trading Strategy — DEBUG VERSION"""
+"""Congressional Copy-Trading Strategy — v2 (cleaned up)"""
 
 from AlgorithmImports import *
 from QuantConnect.DataSource import *
@@ -7,32 +7,25 @@ from QuantConnect.DataSource import *
 class CongressionalTradingAlgorithm(QCAlgorithm):
 
     def initialize(self):
-        self.debug(">>> INIT START")
         self.set_start_date(2020, 1, 1)
         self.set_end_date(2024, 12, 31)
         self.set_cash(100_000)
 
         self.holding_period = 30
-        self.min_trade_value = 1000       # was 50000 — amounts are lower bounds of ranges
+        self.min_trade_value = 1000
         self.max_positions = 15
-        self.position_size_pct = 0.05     # 5% per position
-        self.max_total_exposure = 0.90    # was 0.80
+        self.position_size_pct = 0.05
+        self.max_total_exposure = 0.90
+        self.max_signal_age = 3  # only act on signals from last 3 days
 
-        # Set to None to accept ALL politicians, or keep a set to filter
         self.top_performers = None  # None = all politicians
-        # Uncomment below to filter specific politicians:
-        # self.top_performers = {
-        #     "Nancy Pelosi", "Dan Crenshaw", "Josh Gottheimer",
-        #     "Michael McCaul", "Tommy Tuberville", "Ro Khanna",
-        #     "Mark Green", "Virginia Foxx", "Marjorie Taylor Greene",
-        # }
 
-        self.debug(">>> ADDING UNIVERSE")
         self.add_universe(QuiverQuantCongressUniverse, "QuiverQuantCongressUniverse", self.congress_filter)
-        self.debug(">>> UNIVERSE ADDED OK")
 
         self.position_exit_dates = {}
         self.pending_buys = []
+        self.total_signals = 0
+        self.total_trades = 0
         self.set_benchmark("SPY")
 
         self.schedule.on(
@@ -46,17 +39,9 @@ class CongressionalTradingAlgorithm(QCAlgorithm):
             self.check_exits,
         )
 
-        self.debug(">>> INIT COMPLETE")
-
     def congress_filter(self, data):
-        self.debug(f">>> FILTER CALLED type={type(data).__name__}")
         symbols = []
-
-        for i, point in enumerate(data):
-            if i < 5:
-                self.debug(f">>> ROW {i}: sym={point.symbol} rep={point.representative} "
-                           f"txn={point.transaction} amt={point.amount}")
-
+        for point in data:
             is_buy = False
             try:
                 is_buy = (point.transaction == OrderDirection.BUY)
@@ -69,33 +54,33 @@ class CongressionalTradingAlgorithm(QCAlgorithm):
             if not is_buy:
                 continue
 
-            self.debug(f">>> BUY: {point.representative} -> {point.symbol} ${point.amount}")
-
-            # Top performers filter (skip if None = accept all)
             if self.top_performers is not None and point.representative not in self.top_performers:
                 continue
 
             if point.amount is None or point.amount < self.min_trade_value:
                 continue
 
+            self.total_signals += 1
             self.pending_buys.append({
                 "symbol": point.symbol,
                 "politician": point.representative,
                 "amount": point.amount,
+                "signal_date": self.time,
             })
-            self.debug(f">>> QUEUED: {point.representative} -> {point.symbol}")
             symbols.append(point.symbol)
 
-        self.debug(f">>> FILTER DONE returning {len(symbols)}")
         return symbols
-
-    def on_data(self, data):
-        pass
 
     def execute_pending_trades(self):
         if not self.pending_buys:
             return
-        self.debug(f">>> EXECUTING {len(self.pending_buys)} pending")
+
+        # Remove stale signals (older than max_signal_age days)
+        cutoff = self.time - timedelta(days=self.max_signal_age)
+        self.pending_buys = [t for t in self.pending_buys if t["signal_date"] >= cutoff]
+
+        if not self.pending_buys:
+            return
 
         total_value = self.portfolio.total_portfolio_value
         if total_value <= 0:
@@ -130,7 +115,7 @@ class CongressionalTradingAlgorithm(QCAlgorithm):
             exit_date = self.time + timedelta(days=self.holding_period)
             self.position_exit_dates[symbol] = exit_date
             current_exposure += self.position_size_pct
-            self.debug(f">>> BOUGHT {symbol.value}: {quantity} @ ${price:.2f}")
+            self.total_trades += 1
             executed.append(trade)
 
         for t in executed:
@@ -142,12 +127,15 @@ class CongressionalTradingAlgorithm(QCAlgorithm):
         for symbol, exit_date in self.position_exit_dates.items():
             if self.time >= exit_date:
                 if self.portfolio[symbol].invested:
-                    pnl = self.portfolio[symbol].unrealized_profit
                     self.liquidate(symbol)
-                    self.debug(f">>> EXIT {symbol.value} PnL=${pnl:,.2f}")
                 to_remove.append(symbol)
         for s in to_remove:
             del self.position_exit_dates[s]
 
+    def on_data(self, data):
+        pass
+
     def on_end_of_algorithm(self):
-        self.debug(f">>> DONE Return={self.portfolio.total_profit / 100_000:.2%}")
+        self.debug(f"RESULTS: Return={self.portfolio.total_profit / 100_000:.2%} "
+                   f"Signals={self.total_signals} Trades={self.total_trades} "
+                   f"Final=${self.portfolio.total_portfolio_value:,.0f}")
