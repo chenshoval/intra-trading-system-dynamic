@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data files (local experiment data)
+data/external/
+data/processed/
+*.parquet
+
+# Models (trained artifacts — download from Azure when needed)
+models/
+*.pkl
+*.joblib
+*.lgbm
+*.xgb
+
+# Environment / Secrets
+.env
+.env.*
+credentials.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Azure
+.azure/
+
+# Logs
+*.log
+logs/
+
+# Research outputs (large files)
+research/backtest_results/*.csv
+research/backtest_results/*.json
+
+# Keep .gitkeep files
+!**/.gitkeep

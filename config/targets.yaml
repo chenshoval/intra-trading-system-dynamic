@@ -1,0 +1,55 @@
+# ── Target Variable Configuration ──
+# Configurable target variables for model training.
+# Switch between classification/regression by changing `active`.
+
+active: "forward_return_direction"  # Which target to use
+
+targets:
+  # ── Simple Forward Return (regression) ──
+  forward_return:
+    type: "regression"
+    function: "forward_return"
+    params:
+      periods: 12                   # 12 bars = 1 hour at 5m interval
+    description: "N-bar forward return (continuous)"
+
+  # ── Direction Classification (binary) ──
+  forward_return_direction:
+    type: "classification"
+    function: "forward_return_direction"
+    params:
+      periods: 12
+      threshold: 0.0                # 0 = any positive return is "up"
+    labels: ["down", "up"]
+    description: "Binary direction: up if return > threshold"
+
+  # ── Multi-class Direction ──
+  forward_return_multiclass:
+    type: "classification"
+    function: "forward_return_multiclass"
+    params:
+      periods: 12
+      thresholds: [-0.002, 0.002]   # <-0.2% = down, -0.2%..0.2% = flat, >0.2% = up
+    labels: ["down", "flat", "up"]
+    description: "Three-class: down/flat/up based on return thresholds"
+
+  # ── Triple Barrier (advanced) ──
+  triple_barrier:
+    type: "classification"
+    function: "triple_barrier"
+    params:
+      periods: 12                   # Vertical barrier (max holding period)
+      take_profit_mult: 2.0         # TP = mult * daily ATR
+      stop_loss_mult: 1.0           # SL = mult * daily ATR
+      atr_period: 14
+    labels: ["stop_loss", "timeout", "take_profit"]
+    description: "Triple barrier labeling (de Prado). Label = which barrier hit first."
+
+  # ── Volatility-Adjusted Return ──
+  volatility_adjusted_return:
+    type: "regression"
+    function: "volatility_adjusted_return"
+    params:
+      periods: 12
+      vol_window: 20                # Window for volatility estimation
+    description: "Forward return divided by recent volatility"

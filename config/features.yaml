@@ -1,0 +1,178 @@
+# ── Feature Registry ──
+# Each feature: name, function, dependencies, lookback, enabled.
+# Add new features by adding entries here — no code changes needed.
+# Feature functions are in src/features/indicators/
+
+# ── Moving Averages ──
+moving_averages:
+  sma_5:
+    function: "sma"
+    params: { period: 5 }
+    column: "close"
+    enabled: true
+
+  sma_10:
+    function: "sma"
+    params: { period: 10 }
+    column: "close"
+    enabled: true
+
+  sma_20:
+    function: "sma"
+    params: { period: 20 }
+    column: "close"
+    enabled: true
+
+  sma_60:
+    function: "sma"
+    params: { period: 60 }
+    column: "close"
+    enabled: true
+
+  ema_12:
+    function: "ema"
+    params: { period: 12 }
+    column: "close"
+    enabled: true
+
+  ema_26:
+    function: "ema"
+    params: { period: 26 }
+    column: "close"
+    enabled: true
+
+# ── Momentum ──
+momentum:
+  rsi_14:
+    function: "rsi"
+    params: { period: 14 }
+    column: "close"
+    enabled: true
+
+  rsi_7:
+    function: "rsi"
+    params: { period: 7 }
+    column: "close"
+    enabled: true
+
+  macd:
+    function: "macd"
+    params: { fast: 12, slow: 26, signal: 9 }
+    column: "close"
+    enabled: true
+    # Produces: macd_line, macd_signal, macd_histogram
+
+  roc_5:
+    function: "roc"
+    params: { period: 5 }
+    column: "close"
+    enabled: true
+
+  roc_10:
+    function: "roc"
+    params: { period: 10 }
+    column: "close"
+    enabled: true
+
+# ── Volatility ──
+volatility:
+  atr_14:
+    function: "atr"
+    params: { period: 14 }
+    enabled: true
+    # Uses high, low, close
+
+  bollinger_20:
+    function: "bollinger_bands"
+    params: { period: 20, std_dev: 2 }
+    column: "close"
+    enabled: true
+    # Produces: bb_upper, bb_middle, bb_lower, bb_width, bb_pct
+
+# ── Volume ──
+volume:
+  volume_sma_20:
+    function: "sma"
+    params: { period: 20 }
+    column: "volume"
+    enabled: true
+
+  volume_ratio:
+    function: "volume_ratio"
+    params: { period: 20 }
+    enabled: true
+
+  vwap:
+    function: "vwap"
+    params: {}
+    enabled: true
+
+# ── Price Action ──
+price_action:
+  daily_return:
+    function: "returns"
+    params: { period: 1 }
+    column: "close"
+    enabled: true
+
+  close_to_open:
+    function: "price_ratio"
+    params: { numerator: "close", denominator: "open" }
+    enabled: true
+
+  high_low_range:
+    function: "price_ratio"
+    params: { numerator: "high", denominator: "low" }
+    enabled: true
+
+  upper_shadow:
+    function: "candle_feature"
+    params: { feature: "upper_shadow" }
+    enabled: true
+
+  lower_shadow:
+    function: "candle_feature"
+    params: { feature: "lower_shadow" }
+    enabled: true
+
+  body_size:
+    function: "candle_feature"
+    params: { feature: "body_size" }
+    enabled: true
+
+# ── Structure ──
+structure:
+  close_to_sma20:
+    function: "price_to_ma_ratio"
+    params: { period: 20 }
+    column: "close"
+    enabled: true
+
+  close_to_sma60:
+    function: "price_to_ma_ratio"
+    params: { period: 60 }
+    column: "close"
+    enabled: true
+
+  sma5_to_sma20:
+    function: "ma_crossover_ratio"
+    params: { fast: 5, slow: 20 }
+    column: "close"
+    enabled: true
+
+# ── Time ──
+time:
+  hour:
+    function: "time_feature"
+    params: { feature: "hour" }
+    enabled: true
+
+  day_of_week:
+    function: "time_feature"
+    params: { feature: "day_of_week" }
+    enabled: true
+
+  minute:
+    function: "time_feature"
+    params: { feature: "minute" }
+    enabled: true

@@ -3,7 +3,10 @@
     "allow": [
       "WebFetch(domain:arxiv.org)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:www.reddit.com)"
+      "WebFetch(domain:www.reddit.com)",
+      "Bash(for dir in src src/data src/features src/features/indicators src/models src/execution src/evaluation src/utils)",
+      "Bash(do touch:*)",
+      "Bash(done)"
     ]
   }
 }

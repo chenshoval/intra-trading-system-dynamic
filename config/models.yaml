@@ -1,0 +1,113 @@
+# ── Model Configuration ──
+# Model hyperparameters, training settings, and evaluation criteria.
+
+active: "lightgbm_v1"              # Which model config to use
+
+models:
+  # ── LightGBM Classifier (primary) ──
+  lightgbm_v1:
+    type: "lightgbm"
+    task: "classification"          # classification | regression
+    hyperparameters:
+      num_leaves: 31
+      max_depth: 6
+      learning_rate: 0.05
+      n_estimators: 500
+      min_child_samples: 20
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_alpha: 0.1
+      reg_lambda: 0.1
+      class_weight: "balanced"
+      random_state: 42
+      verbose: -1
+    training:
+      early_stopping_rounds: 50
+      validation_ratio: 0.2
+      # Purged walk-forward CV
+      cv_splits: 5
+      purge_gap: 12                 # Bars between train/val to prevent leakage
+    feature_importance:
+      method: "gain"                # gain | split | shap
+      top_n: 30                     # Top N features to log
+
+  # ── LightGBM Regressor ──
+  lightgbm_regression_v1:
+    type: "lightgbm"
+    task: "regression"
+    hyperparameters:
+      num_leaves: 31
+      max_depth: 6
+      learning_rate: 0.05
+      n_estimators: 500
+      min_child_samples: 20
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_alpha: 0.1
+      reg_lambda: 0.1
+      objective: "regression"
+      metric: "rmse"
+      random_state: 42
+      verbose: -1
+    training:
+      early_stopping_rounds: 50
+      validation_ratio: 0.2
+      cv_splits: 5
+      purge_gap: 12
+
+  # ── XGBoost (alternative) ──
+  xgboost_v1:
+    type: "xgboost"
+    task: "classification"
+    hyperparameters:
+      max_depth: 6
+      learning_rate: 0.05
+      n_estimators: 500
+      subsample: 0.8
+      colsample_bytree: 0.8
+      reg_alpha: 0.1
+      reg_lambda: 0.1
+      eval_metric: "logloss"
+      random_state: 42
+      verbosity: 0
+    training:
+      early_stopping_rounds: 50
+      validation_ratio: 0.2
+      cv_splits: 5
+      purge_gap: 12
+
+# ── Evaluation Criteria ──
+evaluation:
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1
+    - auc_roc
+    - sharpe_ratio
+    - max_drawdown
+    - profit_factor
+    - win_rate
+    - avg_trade_duration
+
+  # Model promotion thresholds
+  promotion:
+    min_accuracy: 0.55
+    min_sharpe: 0.5
+    min_trades: 10
+    min_improvement: 0.05           # 5% improvement over champion
+    overall_score_threshold: 0.6
+
+# ── Signal Output Contract ──
+# All models must produce this output format.
+# Downstream systems (risk, execution) depend on this contract.
+signal_output:
+  fields:
+    signal: "float [-1.0, 1.0]"     # -1=strong sell, 0=neutral, 1=strong buy
+    confidence: "float [0.0, 1.0]"  # Model confidence in signal
+    metadata:
+      model_id: "string"
+      model_version: "string"
+      features_used: "list[string]"
+      prediction_time: "datetime"
+      ticker: "string"

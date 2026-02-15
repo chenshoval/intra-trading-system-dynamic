@@ -1,0 +1,41 @@
+# ── Risk Management Configuration ──
+# HARD STOPS — cannot be overridden by models.
+# Risk manager checks ALL constraints BEFORE any order is placed.
+
+# ── Position Limits ──
+position:
+  max_position_size_pct: 0.05       # Max 5% of portfolio in single stock
+  max_total_exposure_pct: 0.80      # Max 80% of portfolio deployed
+  max_positions: 20                 # Max number of concurrent positions
+  max_sector_exposure_pct: 0.25     # Max 25% in any single sector
+
+# ── Drawdown Limits ──
+drawdown:
+  max_daily_drawdown_pct: 0.02      # Max 2% daily loss → halt trading
+  max_weekly_drawdown_pct: 0.05     # Max 5% weekly loss → halt trading
+  max_total_drawdown_pct: 0.10      # Max 10% total drawdown → halt all
+
+# ── Per-Trade Limits ──
+trade:
+  max_loss_per_trade_pct: 0.01      # Max 1% loss per trade (stop-loss)
+  min_confidence: 0.6               # Min model confidence to enter trade
+  min_signal_strength: 0.3          # Min |signal| to consider acting
+
+# ── Correlation Checks ──
+correlation:
+  max_portfolio_correlation: 0.7    # Reject if correlation with portfolio > 0.7
+  check_window: 60                  # Bars to compute rolling correlation
+
+# ── Trading Hours ──
+trading_hours:
+  market_open: "09:30"              # EST
+  market_close: "16:00"             # EST
+  no_entry_after: "15:45"           # No new positions in last 15 minutes
+  timezone: "US/Eastern"
+
+# ── Circuit Breakers ──
+circuit_breakers:
+  consecutive_losses: 5             # Halt after 5 consecutive losses
+  loss_rate_window: 20              # Look at last 20 trades
+  loss_rate_threshold: 0.7          # Halt if 70%+ of last 20 are losses
+  cooldown_minutes: 30              # Minutes to wait after circuit breaker
