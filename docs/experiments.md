@@ -258,3 +258,32 @@ The thesis used TabNet (deep learning) with 122 features, stock identity embeddi
 - **Trend following (Faber 10m SMA)**: If price > 10-month SMA → hold, else cash. Reduces drawdown 50%.
 - **Multi-factor (momentum + quality)**: Combine momentum with profitability. Sharpe ~1.0.
 - **Time-series momentum (multi-asset ETFs)**: Trend following across SPY, TLT, GLD, etc.
+
+## v5 Model Loading — What Works and What Doesn't
+
+### WORKS:
+- ObjectStore save: `qb.object_store.save_bytes("model.pkl", list(pickle.dumps(model)))` from research notebook
+- ObjectStore load: `bytes(self.object_store.read_bytes("model.pkl"))` then `pickle.loads()` in backtest
+- Dummy model loaded successfully — backtest showed `model=LOADED`
+- LightGBM 4.6.0 is installed on QC cloud
+
+### DOESN'T WORK:
+- `self.download("model.pkl")` — returns string, corrupts binary pickle data
+- `open("model.pkl", "rb")` — project files not accessible from backtest cwd (`/QuantConnect/backtesting`)
+- Research notebook can't see project files either (cwd is `/QuantConnect/research-cloud/airlock`)
+- Project file uploads via UI go to a location inaccessible to both backtest and research
+
+### SOLUTION for real model:
+Train the real model INSIDE the QC research notebook using trade data passed as CSV string or ObjectStore, save to ObjectStore. The backtest loads from ObjectStore.
+
+Steps for next session:
+1. Convert trade CSV data to a format the research notebook can consume (inline string or ObjectStore)
+2. Train LightGBM in research notebook with real trade data
+3. Save real model to ObjectStore
+4. Run v5 backtest — should show FilteredOut > 0 and improved results
+
+### LightGBM Trade Classifier (trained locally)
+- 66.3% accuracy on out-of-sample 2022+ data (vs 51.4% baseline)
+- Impact analysis: Confidence >= 50% → win rate 51%→65%, net P&L 3x improvement
+- Model at: models/trade_classifier/model.pkl (local only)
+- Training script: training/train_trade_classifier.py

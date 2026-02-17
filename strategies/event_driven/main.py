@@ -18,7 +18,6 @@ from AlgorithmImports import *
 from QuantConnect.DataSource import *
 from collections import defaultdict
 import pickle
-import json
 import numpy as np
 
 
@@ -131,20 +130,17 @@ class EventDrivenReactor(QCAlgorithm):
         self.debug(f">>> EVENT REACTOR v5: {len(self.target_tickers)} tickers, model={model_status}")
 
     def _load_model(self):
-        """Load LightGBM model and thresholds from ObjectStore."""
+        """Load LightGBM model from ObjectStore."""
         try:
             if self.object_store.contains_key("model.pkl"):
-                model_bytes = self.object_store.read_bytes("model.pkl")
+                raw = self.object_store.read_bytes("model.pkl")
+                model_bytes = bytes(raw)
                 self.model = pickle.loads(model_bytes)
                 self.debug(">>> Model loaded from ObjectStore")
-
-            if self.object_store.contains_key("thresholds.json"):
-                thresholds_str = self.object_store.read("thresholds.json")
-                data = json.loads(thresholds_str)
-                self.thresholds = data.get("thresholds", {})
-                self.debug(f">>> Thresholds loaded: {len(self.thresholds)} stocks")
+            else:
+                self.debug(">>> model.pkl not in ObjectStore")
         except Exception as e:
-            self.debug(f">>> Model load failed: {e}. Running without confidence filter.")
+            self.debug(f">>> Model load failed: {e}")
             self.model = None
 
     def _predict_confidence(self, ticker, hold_days):
@@ -258,8 +254,7 @@ class EventDrivenReactor(QCAlgorithm):
 
         # ── MODEL CONFIDENCE CHECK (v5 addition) ──
         confidence = self._predict_confidence(ticker, hold_days)
-        threshold = self.thresholds.get(ticker, self.default_confidence)
-        if confidence < threshold:
+        if confidence < self.default_confidence:
             self.filtered_out += 1
             return
 
