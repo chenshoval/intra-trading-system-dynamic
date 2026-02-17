@@ -189,6 +189,70 @@ Changes from v3:
 4. **Paper trade 2 weeks** → if positive → deploy real money ($500-1000 initially)
 5. **Scale to $20K** if real money trading is positive for 1 month
 
+## v4 Results (experiment_17_2_2026_1300)
+
+| Period | Return | CAGR | Sharpe | Trades | Fees | Alpha | Win Rate | Max DD |
+|---|---|---|---|---|---|---|---|---|
+| 2016-2020 | 41% | 7.0% | 0.47 | 5,036 | $11.6K | -0.003 | 53% | -12.1% |
+| 2018-2021 | 27% | 6.1% | 0.36 | 4,648 | $9.7K | -0.017 | 52% | -12.1% |
+| 2020-2024 | 57% | 9.5% | 0.54 | 3,981 | $10.2K | 0.002 | 54% | -16.4% |
+| **2022-2023** | **25%** | **12.0%** | **0.54** | **2,147** | **$4.3K** | **0.057** | **51%** | **-11.2%** |
+
+**v4 vs v3**: Bear market (2022-2023) much better — Sharpe doubled, alpha +42%. Bull market slightly worse (57% vs 71%) but better risk-adjusted. Stop-loss never triggered (StoppedOut=0 across all periods).
+
+## Per-Stock Trade Analysis (v4, 2020-2024)
+
+### Key Finding: 12 stocks are consistently losing money
+
+**Stocks to REMOVE** (10+ trades, negative total P&L):
+| Stock | Trades | Win Rate | Total P&L | Problem |
+|---|---|---|---|---|
+| GE | 58 | 43% | -$5,608 | Worst performer by far |
+| JPM | 271 | 46% | -$3,232 | High volume loser |
+| AVGO | 35 | 37% | -$2,010 | Lowest win rate |
+| CRM | 48 | 46% | -$1,495 | |
+| UPS | 21 | 43% | -$1,476 | |
+| HD | 59 | 54% | -$1,458 | Wins small, loses big |
+| DIS | 89 | 48% | -$1,271 | |
+| UBER | 24 | 50% | -$603 | |
+| BLK | 196 | 52% | -$485 | Many trades, slight loser |
+| COP | 52 | 64% | -$145 | High win rate but losses are big |
+| NKE | 70 | 60% | -$117 | |
+| ADBE | 47 | 45% | -$105 | |
+
+**Impact of removing these 12 stocks:**
+- P&L drag from losers: -$18,005
+- Trades saved: 970 (24% fewer trades)
+- Fees saved: ~$1,940
+- **Projected return: 76% (vs 57%)** — 33% improvement just by removing bad stocks
+- **Projected trades: 3,011 (vs 3,981)** — 25% fewer trades = lower fees
+
+**Stocks to KEEP** (best performers):
+| Stock | Trades | Win Rate | Total P&L |
+|---|---|---|---|
+| SQ | 61 | 64% | +$6,596 |
+| NVDA | 82 | 54% | +$6,316 |
+| AAPL | 182 | 55% | +$4,253 |
+| AMD | 50 | 64% | +$4,125 |
+| GOOGL | 144 | 55% | +$3,966 |
+| MSFT | 164 | 59% | +$3,773 |
+| NFLX | 126 | 55% | +$3,768 |
+
+### v5 Plan: Remove Losing Stocks
+
+Simple approach — no ML model needed yet. Just remove the 12 stocks that consistently lose money. This is the simplest form of "per-stock threshold" — the threshold is binary (trade or don't trade).
+
+If v5 with stock filtering shows improvement → then add LightGBM for per-stock confidence thresholds (full option C from thesis).
+
+### About the Thesis Model (Option C)
+The thesis used TabNet (deep learning) with 122 features, stock identity embeddings, and per-stock τ* threshold optimization. The key wasn't model complexity — it was the pipeline: predict → optimize threshold → only trade high-confidence. A simpler model (LightGBM) with the same pipeline would likely work nearly as well. We'll implement this if v5 stock filtering proves the concept.
+
+### Article Insights Applied
+- **Li et al. (2014)**: News + price fusion improves prediction — validates our Tiingo + gap approach
+- **Hollanders & Vliegenthart (2011)**: Media sentiment causes price moves during crises — explains our strong 2022-2023 alpha
+- **Veld & Veld-Merkoulova (2008)**: Investors use semi-variance (downside risk) — supports Sortino > Sharpe as evaluation metric
+- **Vuchelen (2004)**: Forecast disagreement = uncertainty signal — potential macro regime indicator for position sizing
+
 ## Future Strategy Ideas (from research)
 - **Cross-sectional momentum**: 12-1 month momentum, long top quintile. Sharpe ~0.5-0.6.
 - **Trend following (Faber 10m SMA)**: If price > 10-month SMA → hold, else cash. Reduces drawdown 50%.

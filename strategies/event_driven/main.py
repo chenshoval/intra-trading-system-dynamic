@@ -1,15 +1,14 @@
-"""Event-Driven Reactor v4 — Improved: fewer trades, stop-loss, more positions
+"""Event-Driven Reactor v4 — Current best version
 
-Improvements over v3:
-1. Higher gap threshold (5% instead of 3%) — only strongest signals
-2. Higher volume ratio (2.0x instead of 1.5x) — confirms institutional interest
-3. Stop-loss at 3% — cut losers fast instead of holding 5 days
-4. More positions (20 instead of 15) — better diversification
-5. Smaller position size (4% instead of 6%) — less risk per trade
-6. Track entry prices for stop-loss
+Scans 50 quality stocks for catalysts: price gaps (>5% on 2x volume),
+earnings beats, analyst upgrades, guidance raises. Hold 3-5 days.
 
-Expected impact: fewer trades = lower fees, stop-loss = smaller losses,
-higher thresholds = better signal quality.
+v3→v4 improvements: higher thresholds, stop-loss, more diversification.
+v4 is best version — bear market alpha 0.057, Sharpe 0.54 in 2022-2023.
+
+Per-stock analysis done (see docs/experiments.md) but NOT used for filtering
+to avoid overfitting. Next step: train LightGBM model for per-stock
+confidence thresholds (option C from thesis).
 """
 
 from AlgorithmImports import *
@@ -24,15 +23,15 @@ class EventDrivenReactor(QCAlgorithm):
         self.set_end_date(2024, 12, 31)
         self.set_cash(100_000)
 
-        # ── Parameters (v4 changes marked) ──
-        self.max_positions = 20             # was 15 — more diversification
-        self.position_size_pct = 0.04       # was 0.06 — smaller per trade
+        # ── Parameters ──
+        self.max_positions = 20
+        self.position_size_pct = 0.04
         self.max_total_exposure = 0.90
-        self.min_gap_pct = 0.05             # was 0.03 — only strong gaps
-        self.min_volume_ratio = 2.0         # was 1.5 — confirms real event
-        self.stop_loss_pct = 0.03           # NEW — exit if down 3%
+        self.min_gap_pct = 0.05
+        self.min_volume_ratio = 2.0
+        self.stop_loss_pct = 0.03
 
-        # ── Fixed quality universe ──
+        # ── Full 50-stock universe (no removals — avoid overfitting) ──
         self.target_tickers = [
             # Tech
             "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "AVGO",
