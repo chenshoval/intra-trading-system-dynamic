@@ -1,11 +1,15 @@
-"""Event-Driven Reactor v3 — Fixed quality universe, no dynamic filter
+"""Event-Driven Reactor v4 — Improved: fewer trades, stop-loss, more positions
 
-Simplified: Use a pre-selected list of quality S&P 500 stocks.
-Scan for price gaps + news events. Buy and hold 3-5 days.
+Improvements over v3:
+1. Higher gap threshold (5% instead of 3%) — only strongest signals
+2. Higher volume ratio (2.0x instead of 1.5x) — confirms institutional interest
+3. Stop-loss at 3% — cut losers fast instead of holding 5 days
+4. More positions (20 instead of 15) — better diversification
+5. Smaller position size (4% instead of 6%) — less risk per trade
+6. Track entry prices for stop-loss
 
-Previous versions failed because dynamic universe + add_data inside
-callbacks caused issues. This version uses the same pattern as our
-working sentiment strategy (fixed ticker list + add_data in init).
+Expected impact: fewer trades = lower fees, stop-loss = smaller losses,
+higher thresholds = better signal quality.
 """
 
 from AlgorithmImports import *
@@ -20,17 +24,17 @@ class EventDrivenReactor(QCAlgorithm):
         self.set_end_date(2024, 12, 31)
         self.set_cash(100_000)
 
-        # ── Parameters ──
-        self.max_positions = 15
-        self.position_size_pct = 0.06
+        # ── Parameters (v4 changes marked) ──
+        self.max_positions = 20             # was 15 — more diversification
+        self.position_size_pct = 0.04       # was 0.06 — smaller per trade
         self.max_total_exposure = 0.90
-        self.min_gap_pct = 0.03
-        self.min_volume_ratio = 1.5
+        self.min_gap_pct = 0.05             # was 0.03 — only strong gaps
+        self.min_volume_ratio = 2.0         # was 1.5 — confirms real event
+        self.stop_loss_pct = 0.03           # NEW — exit if down 3%
 
-        # ── Fixed quality universe: top stocks with high ROE + margins ──
-        # Pre-selected: large cap, high quality, diverse sectors
+        # ── Fixed quality universe ──
         self.target_tickers = [
-            # Tech (high margins, high ROE)
+            # Tech
             "AAPL", "MSFT", "NVDA", "GOOGL", "AMZN", "META", "AVGO",
             "CRM", "ADBE", "ORCL", "AMD", "QCOM", "NFLX", "INTU",
             # Finance
@@ -54,8 +58,10 @@ class EventDrivenReactor(QCAlgorithm):
         self.prev_close = {}
         self.volume_sma = {}
         self.position_exit_dates = {}
+        self.entry_prices = {}              # NEW — track entry for stop-loss
         self.total_signals = 0
         self.total_trades = 0
+        self.stopped_out = 0                # NEW — count stop-losses
         self.data_calls = 0
         self.news_events = 0
         self.gap_events = 0
@@ -64,8 +70,6 @@ class EventDrivenReactor(QCAlgorithm):
         for ticker in self.target_tickers:
             equity = self.add_equity(ticker, Resolution.DAILY)
             self.symbols[ticker] = equity.symbol
-
-            # Add Tiingo News
             news = self.add_data(TiingoNews, ticker)
             self.news_symbols[ticker] = news.symbol
 
@@ -103,11 +107,18 @@ class EventDrivenReactor(QCAlgorithm):
         )
         self.schedule.on(
             self.date_rules.every_day("SPY"),
+            self.time_rules.after_market_open("SPY", 60),
+            self.check_stop_losses,         # NEW — check stops mid-day
+        )
+        self.schedule.on(
+            self.date_rules.every_day("SPY"),
             self.time_rules.before_market_close("SPY", 10),
             self.check_exits,
         )
 
-        self.debug(f">>> INIT DONE: {len(self.target_tickers)} tickers")
+        self.debug(f">>> EVENT REACTOR v4: {len(self.target_tickers)} tickers, "
+                   f"gap>{self.min_gap_pct:.0%}, vol>{self.min_volume_ratio}x, "
+                   f"stop={self.stop_loss_pct:.0%}")
 
     def on_data(self, data):
         """Process news + track prices."""
@@ -134,8 +145,7 @@ class EventDrivenReactor(QCAlgorithm):
                     self.news_events += 1
                     self.total_signals += 1
                     self.event_counts[event_type] += 1
-                    self._execute_trade(symbol, ticker, event_type,
-                                       config["hold_days"])
+                    self._execute_trade(symbol, config["hold_days"])
                     break
 
         # ── Track previous close + volume ──
@@ -174,9 +184,9 @@ class EventDrivenReactor(QCAlgorithm):
                     self.gap_events += 1
                     self.total_signals += 1
                     self.event_counts["price_gap"] += 1
-                    self._execute_trade(symbol, ticker, "price_gap", 5)
+                    self._execute_trade(symbol, 5)
 
-    def _execute_trade(self, symbol, ticker, event_type, hold_days):
+    def _execute_trade(self, symbol, hold_days):
         if len(self.position_exit_dates) >= self.max_positions:
             return
 
@@ -201,23 +211,48 @@ class EventDrivenReactor(QCAlgorithm):
 
         self.market_order(symbol, quantity)
         self.position_exit_dates[symbol] = self.time + timedelta(days=hold_days)
+        self.entry_prices[symbol] = price   # Track entry for stop-loss
         self.total_trades += 1
 
+    def check_stop_losses(self):
+        """NEW: Exit positions that hit stop-loss."""
+        to_remove = []
+        for symbol, entry_price in list(self.entry_prices.items()):
+            if symbol not in self.securities:
+                continue
+            current_price = self.securities[symbol].price
+            if current_price <= 0 or entry_price <= 0:
+                continue
+
+            loss_pct = (current_price - entry_price) / entry_price
+            if loss_pct <= -self.stop_loss_pct:
+                if self.portfolio[symbol].invested:
+                    self.liquidate(symbol)
+                    self.stopped_out += 1
+                to_remove.append(symbol)
+
+        for s in to_remove:
+            self.position_exit_dates.pop(s, None)
+            self.entry_prices.pop(s, None)
+
     def check_exits(self):
+        """Exit positions at holding period."""
         to_remove = []
         for symbol, exit_date in self.position_exit_dates.items():
             if self.time >= exit_date:
                 if self.portfolio[symbol].invested:
                     self.liquidate(symbol)
                 to_remove.append(symbol)
+
         for s in to_remove:
             del self.position_exit_dates[s]
+            self.entry_prices.pop(s, None)
 
     def on_end_of_algorithm(self):
         events_str = ", ".join(f"{k}={v}" for k, v in sorted(self.event_counts.items()))
         self.debug(f"RESULTS: Return={self.portfolio.total_profit / 100_000:.2%} "
                    f"Signals={self.total_signals} Trades={self.total_trades} "
+                   f"StoppedOut={self.stopped_out} "
                    f"NewsEvents={self.news_events} GapEvents={self.gap_events} "
-                   f"DataCalls={self.data_calls} "
                    f"Final=${self.portfolio.total_portfolio_value:,.0f} "
                    f"Events=[{events_str}]")
