@@ -6,7 +6,8 @@
       "WebFetch(domain:www.reddit.com)",
       "Bash(for dir in src src/data src/features src/features/indicators src/models src/execution src/evaluation src/utils)",
       "Bash(do touch:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "WebFetch(domain:www.quantconnect.com)"
     ]
   }
 }
