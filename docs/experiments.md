@@ -273,14 +273,19 @@ The thesis used TabNet (deep learning) with 122 features, stock identity embeddi
 - Research notebook can't see project files either (cwd is `/QuantConnect/research-cloud/airlock`)
 - Project file uploads via UI go to a location inaccessible to both backtest and research
 
-### SOLUTION for real model:
-Train the real model INSIDE the QC research notebook using trade data passed as CSV string or ObjectStore, save to ObjectStore. The backtest loads from ObjectStore.
+### SOLUTION — ObjectStore Upload via QC UI:
+1. Train model locally: `python training/train_trade_classifier.py`
+2. Go to QC project → ObjectStore tab → Upload button
+3. Upload `models/trade_classifier/model.pkl` as `real_model.pkl`
+4. Backtest loads via `self.object_store.read_bytes("real_model.pkl")` → `bytes(raw)` → `pickle.loads()`
+5. **CONFIRMED WORKING** — real model loaded successfully
 
-Steps for next session:
-1. Convert trade CSV data to a format the research notebook can consume (inline string or ObjectStore)
-2. Train LightGBM in research notebook with real trade data
-3. Save real model to ObjectStore
-4. Run v5 backtest — should show FilteredOut > 0 and improved results
+### For larger models (>60MB) — Azure ML pipeline:
+1. Train on Azure ML or local GPU
+2. Export model to Azure Blob Storage
+3. Use QC research notebook to download from Azure Blob → save to ObjectStore
+4. Or use QC REST API to upload to ObjectStore from local PC
+5. Alternative: use `lean` CLI for local backtesting (no 60MB limit)
 
 ### LightGBM Trade Classifier (trained locally)
 - 66.3% accuracy on out-of-sample 2022+ data (vs 51.4% baseline)

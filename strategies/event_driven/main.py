@@ -132,13 +132,18 @@ class EventDrivenReactor(QCAlgorithm):
     def _load_model(self):
         """Load LightGBM model from ObjectStore."""
         try:
-            if self.object_store.contains_key("model.pkl"):
+            if self.object_store.contains_key("real_model.pkl"):
+                raw = self.object_store.read_bytes("real_model.pkl")
+                model_bytes = bytes(raw)
+                self.model = pickle.loads(model_bytes)
+                self.debug(">>> Real model loaded from ObjectStore")
+            elif self.object_store.contains_key("model.pkl"):
                 raw = self.object_store.read_bytes("model.pkl")
                 model_bytes = bytes(raw)
                 self.model = pickle.loads(model_bytes)
-                self.debug(">>> Model loaded from ObjectStore")
+                self.debug(">>> Model loaded from ObjectStore (fallback)")
             else:
-                self.debug(">>> model.pkl not in ObjectStore")
+                self.debug(">>> No model in ObjectStore")
         except Exception as e:
             self.debug(f">>> Model load failed: {e}")
             self.model = None
