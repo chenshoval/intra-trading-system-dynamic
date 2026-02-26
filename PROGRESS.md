@@ -27,7 +27,24 @@
 ### Known Weakness
 - Max drawdown 32-36% in bull periods, 27% in bear (2022-2023)
 - High beta (~1.0-1.1) — concentrated long-only equity exposure
-- Building v3-v6 variants to address this with short/hedge legs
+- Static 50-stock universe has survivorship bias (UBER, ABNB didn't exist in 2016)
+
+### Bear Market Variants Tested (v3-v7) — None Beat v2 Overall
+| Variant | Approach | Bull Performance | Bear Performance | Verdict |
+|---------|----------|:---:|:---:|---------|
+| v3 (LS-50) | Short bottom 5 of 50 stocks | Worse | Negative Sharpe | KILL — shorting quality stocks doesn't work |
+| v3b (LS-500) | S&P 500 long-short, threshold | 2.9% CAR 2016-2020 | OK (5% CAR) | Dangerous — 49% DD on 2020-2024 |
+| v4 (SPY hedge) | Short SPY in downtrend | OK but weaker | Lost money (-1.3%) | Mediocre — hedge didn't help enough |
+| v5 (sectors) | 11 sector ETFs long-short | Weak (5.7% CAR) | **Best: 12% CAR, Sharpe 0.56** | Bear champion but too weak in bulls |
+| v6 (trend) | 70% stocks + 30% SPY trend | OK but lower | Lost money (-3.7%) | SPY sat as dead weight, whipsawed |
+| v7 (dual) | 70% v2 + 30% v5 sectors | Worse than v2 | TBD | Capital split dilutes again |
+
+**Conclusion: v2 remains the best overall strategy. No variant improved on it without sacrificing more than it gained.**
+
+### Future Improvements (Not Building Yet)
+1. **Dynamic universe**: Replace static 50 stocks with top 50 by market cap (auto-refresh). Already prototyped in v3b.
+2. **Bi-weekly rebalance**: Catches momentum reversals faster. Worth testing at higher capital levels.
+3. **Threshold-based long/neutral/short**: Score > 0.65 → long, 0.35-0.65 → neutral, < 0.35 → short. Adapts net exposure to regime naturally. Cleanest future architecture.
 
 ---
 
