@@ -28,7 +28,8 @@ class SupportZoneBounceV2(QCAlgorithm):
         self.SetEndDate(2024, 12, 31)
         self.SetCash(100000)
 
-        self.SetBrokerageModel(BrokerageName.OandaBrokerage)
+        self.SetBrokerageModel(BrokerageName.InteractiveBrokersBrokerage)
+        # QC uses Oanda data feed for forex backtesting even with IBKR brokerage model
         self.symbol = self.AddForex("EURUSD", Resolution.Minute, Market.Oanda).Symbol
 
         # ── Zone Detection ──
