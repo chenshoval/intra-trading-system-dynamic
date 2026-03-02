@@ -1,22 +1,17 @@
 """Monthly Rotator v9 — Fundamentals + Dynamic Universe
 
-The "no known issues" version. Combines:
-- v8's 8-signal scoring (momentum + trend + recent + vol + events + value + quality + leverage)
-- Dynamic universe: auto-selects top 50 US stocks by dollar volume each month
-  (eliminates survivorship bias from hand-picked tickers)
+Dynamic universe with three key filters:
+1. Sort by MARKET CAP (not dollar volume — avoids hyped/meme stocks)
+2. Sector caps matching v2's allocation (max 14 tech, 7 finance, etc.)
+3. Require POSITIVE EARNINGS (filters out money-losing bubble stocks)
 
-No more static ticker list. The universe evolves naturally:
-- 2016: top 50 includes stocks that were big then, not 2026 winners
-- New mega-caps auto-enter as they grow (NVDA, META post-IPO, etc.)
-- Declining stocks auto-exit when they drop out of top 50
-
-Event scoring dropped (was 5% in v8): dynamic universe means we can't
-pre-subscribe to TiingoNews for unknown tickers. The 5% weight is
-redistributed to momentum (now 30%). This is fine — pure momentum beat
-events-only in all but bear markets, and fundamentals cover the bear case.
+Universe evolves naturally without survivorship bias:
+- 2016: picks the largest profitable companies of 2016, not 2026 winners
+- New mega-caps auto-enter as they grow
+- Declining stocks auto-exit when they fall out of top market cap
 
 Signal weights (7 signals, sum to 1.0):
-  momentum  0.30  (was 0.25 in v8)
+  momentum  0.30
   trend     0.15
   recent    0.15
   vol       0.10
@@ -45,8 +40,29 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
 
         # ── Universe parameters ──
         self.universe_size = 50
-        self.min_price = 10.0               # filter penny stocks
-        self.min_dollar_volume = 10_000_000  # $10M daily volume minimum
+        self.min_price = 10.0
+        self.min_market_cap = 10_000_000_000  # $10B minimum market cap
+
+        # ── Sector caps (matching v2's sector balance) ──
+        # MorningstarSectorCode values:
+        #   101=Basic Materials, 102=Consumer Cyclical, 103=Financial Services,
+        #   104=Real Estate, 205=Consumer Defensive, 206=Healthcare,
+        #   207=Utilities, 308=Communication Services, 309=Energy,
+        #   310=Industrials, 311=Technology
+        self.sector_caps = {
+            311: 14,   # Technology — max 14
+            103: 7,    # Financial Services — max 7
+            206: 7,    # Healthcare — max 7
+            102: 4,    # Consumer Cyclical — max 4
+            205: 3,    # Consumer Defensive — max 3
+            310: 5,    # Industrials — max 5
+            309: 3,    # Energy — max 3
+            308: 3,    # Communication Services — max 3
+            101: 2,    # Basic Materials — max 2
+            104: 1,    # Real Estate — max 1
+            207: 1,    # Utilities — max 1
+        }
+        self.default_sector_cap = 2         # any unlisted sector
 
         # ── Signal weights (7 signals, sum to 1.0) ──
         self.w_momentum = 0.30
@@ -65,8 +81,8 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
         self.vol_period = 42
 
         # ── Data structures ──
-        self.active_universe = []           # populated by universe selection
-        self.current_holdings = set()       # symbols currently held
+        self.active_universe = []
+        self.current_holdings = set()
         self.last_rebalance = None
         self.is_in_cash = False
 
@@ -81,7 +97,8 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
         self.monthly_pnl = defaultdict(float)
         self.fundamentals_available = 0
         self.fundamentals_missing = 0
-        self.universe_sizes = []            # track how many stocks pass filter each month
+        self.universe_sizes = []
+        self.sector_counts = defaultdict(int)  # track sector distribution
 
         # ── Universe selection ──
         self.add_universe(self._coarse_selection, self._fine_selection)
@@ -106,31 +123,59 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
         )
 
         self.debug(
-            f">>> MONTHLY ROTATOR v9 (dynamic universe + fundamentals): "
-            f"top {self.universe_size} by dollar volume, 7 signals"
+            f">>> MONTHLY ROTATOR v9b (market cap + sector caps + profitable): "
+            f"top {self.universe_size}, 7 signals"
         )
 
     # ══════════════════════════════════════════════════════════════════════
-    # Universe selection
+    # Universe selection — FIXED
     # ══════════════════════════════════════════════════════════════════════
 
     def _coarse_selection(self, coarse):
-        """First filter: top 50 US equities by dollar volume, price > $10."""
+        """Filter: price > $10, has fundamentals, sorted by MARKET CAP."""
         filtered = [
             x for x in coarse
             if x.has_fundamental_data
             and x.price > self.min_price
-            and x.dollar_volume > self.min_dollar_volume
+            and x.market_cap > self.min_market_cap
         ]
-        sorted_by_volume = sorted(
-            filtered, key=lambda x: x.dollar_volume, reverse=True
-        )
-        return [x.symbol for x in sorted_by_volume[:self.universe_size]]
+        # Sort by market cap (largest first) — NOT dollar volume
+        sorted_by_cap = sorted(filtered, key=lambda x: x.market_cap, reverse=True)
+        # Take top 200 candidates for fine selection to apply sector caps
+        return [x.symbol for x in sorted_by_cap[:200]]
 
     def _fine_selection(self, fine):
-        """Second filter: require fundamental data availability."""
-        # Accept all that pass coarse — fine selection ensures fundamentals load
-        return [x.symbol for x in fine]
+        """Apply sector caps and profitability filter."""
+        sector_count = defaultdict(int)
+        selected = []
+
+        # Sort by market cap within fine selection
+        sorted_fine = sorted(fine, key=lambda x: x.market_cap, reverse=True)
+
+        for stock in sorted_fine:
+            if len(selected) >= self.universe_size:
+                break
+
+            # Require positive earnings (EPS > 0)
+            try:
+                eps = stock.earning_reports.basic_eps.value
+                if eps is None or eps <= 0:
+                    continue
+            except Exception:
+                # If we can't read EPS, skip — be conservative
+                continue
+
+            # Apply sector cap
+            sector = stock.asset_classification.morningstar_sector_code
+            cap = self.sector_caps.get(sector, self.default_sector_cap)
+            if sector_count[sector] >= cap:
+                continue
+
+            sector_count[sector] += 1
+            selected.append(stock.symbol)
+
+        self.sector_counts = dict(sector_count)
+        return selected
 
     def on_securities_changed(self, changes):
         """Track universe additions/removals."""
@@ -141,7 +186,6 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
         for security in changes.removed_securities:
             if security.symbol in self.active_universe:
                 self.active_universe.remove(security.symbol)
-            # Liquidate removed stocks if we hold them
             if security.symbol in self.current_holdings:
                 if self.portfolio[security.symbol].invested:
                     self.liquidate(security.symbol)
@@ -162,44 +206,32 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
     # ══════════════════════════════════════════════════════════════════════
 
     def _get_fundamentals(self, symbol):
-        """Extract fundamental data from QC's Fundamentals property."""
         if symbol not in self.securities:
             return None
-
         security = self.securities[symbol]
         if not security.fundamentals:
             return None
-
         f = security.fundamentals
-
         try:
             pe_ratio = f.valuation_ratios.pe_ratio
             earnings_yield = 1.0 / pe_ratio if pe_ratio and pe_ratio > 0 else 0.0
-
             roe = f.operation_ratios.roe.value if f.operation_ratios.roe else 0.0
-
             de_ratio = (
                 f.operation_ratios.total_debt_equity_ratio.value
                 if f.operation_ratios.total_debt_equity_ratio
                 else 1.0
             )
-
             self.fundamentals_available += 1
-            return {
-                "earnings_yield": earnings_yield,
-                "roe": roe,
-                "de_ratio": de_ratio,
-            }
+            return {"earnings_yield": earnings_yield, "roe": roe, "de_ratio": de_ratio}
         except Exception:
             self.fundamentals_missing += 1
             return None
 
     # ══════════════════════════════════════════════════════════════════════
-    # Stock scoring (7 signals, no events)
+    # Stock scoring (7 signals)
     # ══════════════════════════════════════════════════════════════════════
 
     def _score_stocks(self):
-        """Score all stocks in dynamic universe."""
         scores = {}
         raw_data = {}
 
@@ -225,33 +257,28 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
             if price_now <= 0:
                 continue
 
-            # Signal 1: Momentum (6-month, skip last month)
             price_6m = closes[0]
             price_1m = closes[-self.mom_skip]
             momentum = (price_1m / price_6m) - 1.0 if price_6m > 0 and price_1m > 0 else 0.0
 
-            # Signal 2: Trend (above 50d MA)
             if len(closes) >= self.stock_ma_period:
                 ma_50 = np.mean(closes[-self.stock_ma_period:])
                 trend_score = 1.0 if price_now > ma_50 else 0.0
             else:
                 trend_score = 0.5
 
-            # Signal 3: Recent strength (1-month)
             if len(closes) >= self.recent_period:
                 price_1m_ago = closes[-self.recent_period]
                 recent = (price_now / price_1m_ago) - 1.0 if price_1m_ago > 0 else 0.0
             else:
                 recent = 0.0
 
-            # Signal 4: Volatility (lower = better)
             if len(closes) >= self.vol_period:
                 returns = np.diff(closes[-self.vol_period:]) / closes[-self.vol_period:-1]
                 vol = np.std(returns) * np.sqrt(252) if len(returns) > 1 else 1.0
             else:
                 vol = 1.0
 
-            # Signals 5-7: Fundamentals
             fund = self._get_fundamentals(symbol)
             earnings_yield = fund["earnings_yield"] if fund else 0.0
             roe = fund["roe"] if fund else 0.0
@@ -269,23 +296,19 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
         symbols_list = list(raw_data.keys())
         n = len(symbols_list)
 
-        # Rank-normalize (higher = better)
         for signal in ["momentum", "recent", "earnings_yield", "roe"]:
             ranked = sorted(symbols_list, key=lambda s: raw_data[s][signal])
             for i, s in enumerate(ranked):
                 raw_data[s][f"{signal}_rank"] = i / (n - 1) if n > 1 else 0.5
 
-        # Volatility: lower = better
         ranked_vol = sorted(symbols_list, key=lambda s: raw_data[s]["vol"], reverse=True)
         for i, s in enumerate(ranked_vol):
             raw_data[s]["vol_rank"] = i / (n - 1) if n > 1 else 0.5
 
-        # Debt-to-equity: lower = better
         ranked_de = sorted(symbols_list, key=lambda s: raw_data[s]["de_ratio"], reverse=True)
         for i, s in enumerate(ranked_de):
             raw_data[s]["de_ratio_rank"] = i / (n - 1) if n > 1 else 0.5
 
-        # Composite score — 7 signals
         for symbol in symbols_list:
             d = raw_data[symbol]
             score = (
@@ -328,7 +351,7 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
 
         scores = self._score_stocks()
         if not scores:
-            self.debug(f"  No scores (universe has {len(self.active_universe)} stocks), skipping")
+            self.debug(f"  No scores (universe={len(self.active_universe)}), skipping")
             return
 
         n_hold = self.top_n if uptrend else self.downtrend_top_n
@@ -337,7 +360,6 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         target_symbols = set(s for s, _ in ranked[:n_hold])
 
-        # Sell positions not in new top N
         for symbol in list(self.current_holdings):
             if symbol not in target_symbols:
                 if self.portfolio[symbol].invested:
@@ -345,7 +367,6 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
                     self.total_trades += 1
                 self.current_holdings.discard(symbol)
 
-        # Buy new positions
         total_value = self.portfolio.total_portfolio_value
         if total_value <= 0 or n_hold <= 0:
             return
@@ -368,17 +389,18 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
                 self.total_trades += 1
             self.current_holdings.add(symbol)
 
-        # Log top picks with tickers
         top3_info = []
         for s, sc in ranked[:3]:
             ticker = str(s).split(' ')[0] if ' ' in str(s) else str(s)
             top3_info.append(f"{ticker}:{sc:.3f}")
 
         regime = "UP" if uptrend else "DOWN"
+        sectors_str = str(dict(self.sector_counts))
         self.debug(
             f"REBALANCE [{regime}]: universe={len(self.active_universe)} "
             f"scored={len(scores)} holding={n_hold} "
-            f"top3=[{', '.join(top3_info)}] eq=${total_value:,.0f}"
+            f"top3=[{', '.join(top3_info)}] eq=${total_value:,.0f} "
+            f"sectors={sectors_str}"
         )
 
     # ══════════════════════════════════════════════════════════════════════
@@ -388,26 +410,21 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
     def midweek_trend_check(self):
         if not self.current_holdings:
             return
-
         uptrend = self._is_uptrend()
-
         if not uptrend and not self.is_in_cash:
             self.is_in_cash = True
             self.emergency_exits += 1
-
             scores = self._score_stocks()
             keep = set()
             if scores:
                 ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
                 keep = set(s for s, _ in ranked[:self.downtrend_top_n])
-
             for symbol in list(self.current_holdings):
                 if symbol not in keep:
                     if self.portfolio[symbol].invested:
                         self.liquidate(symbol)
                         self.total_trades += 1
                     self.current_holdings.discard(symbol)
-
             if keep:
                 total_value = self.portfolio.total_portfolio_value
                 target_alloc = total_value / len(keep)
@@ -423,9 +440,7 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
                     if abs(delta) > 0:
                         self.market_order(symbol, delta)
                         self.total_trades += 1
-
-            self.debug(f"EMERGENCY: downtrend, reduced to {len(self.current_holdings)} positions")
-
+            self.debug(f"EMERGENCY: downtrend, reduced to {len(self.current_holdings)}")
         elif uptrend and self.is_in_cash:
             self.is_in_cash = False
             self.debug(f"RECOVERY: uptrend restored")
@@ -441,19 +456,15 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
             self.monthly_returns.append(month_ret)
 
         ret_pct = self.portfolio.total_profit / 100_000
-
         avg_universe = np.mean(self.universe_sizes) if self.universe_sizes else 0
 
         self.debug(
             f"RESULTS: Return={ret_pct:.2%} Final=${current_equity:,.0f} "
             f"Rebalances={self.total_rebalances} Trades={self.total_trades} "
-            f"EmergencyExits={self.emergency_exits} "
-            f"AvgUniverse={avg_universe:.0f} "
+            f"EmergExits={self.emergency_exits} AvgUniverse={avg_universe:.0f} "
             f"FundAvail={self.fundamentals_available} FundMiss={self.fundamentals_missing}"
         )
-        self.debug(
-            f"REGIME: Up={self.months_in_uptrend} Down={self.months_in_downtrend}"
-        )
+        self.debug(f"REGIME: Up={self.months_in_uptrend} Down={self.months_in_downtrend}")
 
         if self.monthly_returns:
             rets = np.array(self.monthly_returns)
@@ -465,7 +476,6 @@ class MonthlyRotatorV9Dynamic(QCAlgorithm):
             worst = np.min(rets)
             std = np.std(rets)
             monthly_sharpe = avg_ret / std if std > 0 else 0
-
             self.debug(
                 f"MONTHLY: Avg={avg_ret:.2%} Med={median_ret:.2%} "
                 f"Best={best:.2%} Worst={worst:.2%} Std={std:.2%} "
