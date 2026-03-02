@@ -103,21 +103,101 @@ All are large/mega-cap with high liquidity and analyst coverage.
 
 ---
 
-## Pending Experiments
+## v8 Fundamentals Results — Promising for Bear Markets
 
-### v8 — Fundamentals-Enhanced (backtesting)
-- `strategies/monthly_rotator/main_v8_fundamentals.py`
-- Same as v2 but adds 3 fundamental signals: value (E/P), quality (ROE), leverage (D/E)
-- 8 signals total instead of 5
-- Based on Lewellen (Sharpe 1.72 with 15 variables) and Harvey (quality +3% real in inflation)
-- Awaiting backtest results to compare against v2
+### v2 vs v8 Head-to-Head: v2 wins 12/20, v8 wins 8/20
 
-### Future Ideas (Not Building Yet)
-1. **Dynamic universe**: Replace static 50 with top 50 by market cap (auto-refresh). Prototyped in v3b.
-2. **Bi-weekly rebalance**: Catches momentum reversals faster. Worth testing at higher capital levels.
-3. **Threshold-based long/neutral/short**: Score > 0.65 → long, 0.35-0.65 → neutral, < 0.35 → short.
-4. **Congressional trading**: Quiver Quantitative dataset in QC (CLAUDE.md Hypothesis 1).
-5. **Multi-strategy HRP allocation**: When running 2+ strategies, use López de Prado's hierarchical allocation.
+| Period | v2 CAR | v8 CAR | v2 Sharpe | v8 Sharpe | v2 DD | v8 DD |
+|--------|:------:|:------:|:---------:|:---------:|:-----:|:-----:|
+| 2016-2020 | **43.4%** | 30.7% | **1.45** | 1.13 | 35.8% | **31.2%** |
+| 2018-2021 | **35.8%** | 29.1% | **1.14** | 1.00 | 35.8% | **31.1%** |
+| 2020-2024 | **26.4%** | 22.0% | **0.85** | 0.73 | 32.4% | **31.3%** |
+| 2022-2023 | 10.0% | **10.5%** | 0.28 | **0.31** | 27.1% | **23.3%** |
+
+**Key findings:**
+- v2 wins on returns and Sharpe in bull markets (momentum dominance)
+- v8 wins on drawdown in ALL periods (fundamentals add stability)
+- v8 beats v2 in bear market (2022-2023) on every metric — fundamentals shine when momentum fails
+- **Verdict:** Fundamentals help most when it matters most (bear markets). Worth incorporating into v9 with dynamic universe.
+
+## Roadmap
+
+### v9 (next to build): Fundamentals + Dynamic Universe
+- Combine v8's 8-signal scoring with dynamic top-50-by-market-cap universe from v3b
+- Eliminates survivorship bias AND adds fundamental robustness
+- This is the "no known issues" version
+
+### v10 (future): Real Sentiment Analysis
+- Replace keyword scanning with actual NLP sentiment (FinBERT or similar)
+- Requires: model hosting, inference pipeline, custom data feed into QC
+- Timeline: after v9 validation (6+ months)
+
+### Other Future Ideas
+1. **Bi-weekly rebalance**: Catches momentum reversals faster. Worth testing at higher capital levels.
+2. **Threshold-based long/neutral/short**: Score > 0.65 → long, 0.35-0.65 → neutral, < 0.35 → short.
+3. **Congressional trading**: Quiver Quantitative dataset in QC (CLAUDE.md Hypothesis 1).
+4. **Multi-strategy HRP allocation**: When running 2+ strategies, use López de Prado's hierarchical allocation.
+
+---
+
+## How to Analyze Experiment Results
+
+### Quick comparison script (run from repo root):
+```python
+python3 -c "
+import json, os, glob, sys, io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+# Change these paths to compare any two experiments:
+bases = {
+    'Strategy A': 'results_from_quant_connect/FOLDER_A',
+    'Strategy B': 'results_from_quant_connect/FOLDER_B',
+}
+periods = ['2016-2020', '2018-2021', '2020-2024', '2022-2023']
+
+def get_data(base, period):
+    pp = os.path.join(base, period)
+    if not os.path.isdir(pp): return None
+    jf = glob.glob(os.path.join(pp, '*.json'))
+    if not jf: return None
+    with open(jf[0], 'r') as f: return json.load(f)
+
+def val(data, key):
+    if data is None: return '?'
+    return data.get('statistics', {}).get(key, '?')
+
+for period in periods:
+    print(f'\n--- {period} ---')
+    for name, base in bases.items():
+        d = get_data(base, period)
+        car = val(d, 'Compounding Annual Return')
+        sharpe = val(d, 'Sharpe Ratio')
+        dd = val(d, 'Drawdown')
+        psr = val(d, 'Probabilistic Sharpe Ratio')
+        print(f'  {name}: CAR={car} Sharpe={sharpe} DD={dd} PSR={psr}')
+"
+```
+
+### Result folder naming convention:
+```
+results_from_quant_connect/
+├── MonthlyRotatorV2/experiment_19_2_2026_1645/   # v2 (deployed)
+├── PureMomentom/expreiment_19_2_2026_1616/       # pure momentum
+├── CombinedDualEngine/experiment_19_2_2026_1240/ # combined dual (v1+events)
+├── monthlyrotatorv3/                              # v3 long-short 50
+├── monthlyrotatorv3b/                             # v3b S&P 500 long-short
+├── monthlyrotator4/                               # v4 SPY hedge
+├── MomthlyRotatorV5/                              # v5 sectors
+├── monthlyrotatorv6/                              # v6 trend overlay
+├── monthlyrotatorv7/                              # v7 dual (v2+v5)
+├── monthlyrotatorv8/                              # v8 fundamentals
+├── Forext/                                        # forex zone bounce (killed)
+├── trade-events/experiment_18_2_2026_1800/       # trend+events v1
+└── event-driven new refactor/                     # baseline v4 + v5 ML
+    ├── experiment_17_2_2026_1204/                 # v4 baseline
+    ├── experiment_17_2_2026_1300/                 # v4 variant
+    └── experiment_17_2_2026_1440/                 # v5 ML filter
+```
 
 ---
 
