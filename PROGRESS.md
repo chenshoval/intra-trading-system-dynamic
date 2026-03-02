@@ -122,15 +122,22 @@ All are large/mega-cap with high liquidity and analyst coverage.
 
 ## Roadmap
 
-### v9 (next to build): Fundamentals + Dynamic Universe
-- Combine v8's 8-signal scoring with dynamic top-50-by-market-cap universe from v3b
-- Eliminates survivorship bias AND adds fundamental robustness
-- This is the "no known issues" version
+### v8 is the upgrade path (when ready)
+- v8 (fundamentals on static universe) is the best alternative to v2
+- Lower drawdown in ALL periods, better bear market performance
+- Deploy as v2 replacement after 6-month v2 live validation (Sept 2026)
+
+### Dynamic universe — KILLED
+- v9 (dollar volume): beta 2.0, 59% DD, -17% in 2022. Terrible.
+- v9b (market cap + sector caps + positive EPS): better but still v2 wins 17/20
+- **Conclusion: hand-picked universe beats dynamic selection.** The curated quality
+  and intentional sector balance outweighs survivorship bias concerns.
+- **Action: manually refresh the 50-stock list every 6 months instead.**
 
 ### v10 (future): Real Sentiment Analysis
 - Replace keyword scanning with actual NLP sentiment (FinBERT or similar)
 - Requires: model hosting, inference pipeline, custom data feed into QC
-- Timeline: after v9 validation (6+ months)
+- Timeline: after v8 deployment validation (2027+)
 
 ### Other Future Ideas
 1. **Bi-weekly rebalance**: Catches momentum reversals faster. Worth testing at higher capital levels.
@@ -191,6 +198,8 @@ results_from_quant_connect/
 ├── monthlyrotatorv6/                              # v6 trend overlay
 ├── monthlyrotatorv7/                              # v7 dual (v2+v5)
 ├── monthlyrotatorv8/                              # v8 fundamentals
+├── monthlyrotatorv9/                              # v9 dynamic universe (killed — beta 2.0)
+├── monthlyrotatorv9b/                             # v9b fixed dynamic (still worse than v2)
 ├── Forext/                                        # forex zone bounce (killed)
 ├── trade-events/experiment_18_2_2026_1800/       # trend+events v1
 └── event-driven new refactor/                     # baseline v4 + v5 ML
