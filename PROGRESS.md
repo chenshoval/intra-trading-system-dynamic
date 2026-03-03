@@ -35,6 +35,10 @@
 
 ## Maintenance Schedule
 
+### Deployment Rules
+- **CRITICAL: Any live deployment MUST trigger an immediate rebalance on startup.** Do NOT rely on the monthly schedule — if deployed mid-month, the strategy will sit in cash until the next month_start event. Add `self.monthly_rebalance()` at the end of `initialize()` for any live deployment, or use a one-time scheduled event for the deployment day. Remove the one-time trigger after the first rebalance fires.
+- Lesson learned: March 2026 deployment sat in cash for a full month because the month_start schedule had already passed.
+
 ### Monthly (every rebalance)
 - Check QC logs for errors after each month's rebalance
 - Verify orders filled correctly
