@@ -31,6 +31,43 @@
 - Static 50-stock universe has survivorship bias (UBER, ABNB didn't exist in 2016)
 - Missing fundamental signals (value, quality, leverage) that papers show improve robustness
 
+## Live Deployment Scaling Ladder
+
+| Capital | Strategy | File | Stocks | Downtrend | Notes |
+|:-------:|----------|------|:------:|:---------:|-------|
+| **$500-$2K** | v10 Small | `main_v10_small.py` | Top 15 (buy affordable) | 5 | Cheap stocks added, skip-and-log |
+| **$2K-$20K** | v11 Medium | `main_v11_medium.py` | Top 10 | 5 | Original 50 universe, most stocks affordable |
+| **$20K-$100K** | v2 Full | `main_v2.py` | Top 15 | 5 | Full diversification, all stocks affordable |
+| **$100K+** | v2 Full | `main_v2.py` | Top 15 | 5 | Same as above, more shares per position |
+
+**How to scale up:**
+1. Start with v10 at $500
+2. When account hits $2K → stop v10, deploy v11 medium
+3. When account hits $20K → stop v11, deploy v2 full
+4. All use same scoring engine, same signals, same trend gate
+5. Only difference is how many stocks are held and position sizing
+
+**Current deployment:** v10 on IBKR with $515 (March 2026)
+
+## How the 50-Stock Universe Was Picked
+
+The universe was NOT from any academic paper. It was hand-curated based on:
+1. **Sector diversification** — intentional balance across 8 sectors
+2. **Heavy news coverage** — needed for Tiingo event scoring (earnings beats, upgrades)
+3. **High liquidity** — all mega-cap, easy to enter/exit
+4. **Personal familiarity** — companies you can reason about fundamentally
+
+### Why it works despite survivorship bias:
+- The scoring engine picks the top 15 from this pool each month
+- Bad-momentum stocks just don't get selected — they sit idle in the universe
+- The universe is the "candidate pool," not the portfolio
+- Backtests show hand-picked beats dynamic selection (v9/v9b experiments)
+
+### When to refresh:
+- Every 6 months: check for acquisitions, delistings, market cap drops below $10B
+- Every 12 months: consider adding new mega-caps, rebalancing sector weights
+- If a stock is removed, replace with the next-largest in the same sector
+
 ---
 
 ## Maintenance Schedule
