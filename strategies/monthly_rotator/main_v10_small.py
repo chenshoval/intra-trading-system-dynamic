@@ -34,8 +34,8 @@ class MonthlyRotatorV10Small(QCAlgorithm):
         self.set_cash(500)
 
         # ── Portfolio parameters ──
-        self.top_n = 5
-        self.downtrend_top_n = 3
+        self.top_n = 15
+        self.downtrend_top_n = 5
         self.trend_fast = 10
         self.trend_slow = 50
 
@@ -322,34 +322,42 @@ class MonthlyRotatorV10Small(QCAlgorithm):
                     self.total_trades += 1
                 self.current_holdings.discard(ticker)
 
-        # Buy new positions
+        # Buy new positions — try each by score order, skip what we can't afford
         total_value = self.portfolio.total_portfolio_value
         if total_value <= 0 or n_hold <= 0:
             self.event_counts_this_month.clear()
             return
 
         target_alloc = total_value / n_hold
+        bought = 0
+        skipped = []
 
-        for ticker in target_tickers:
+        ranked_targets = [(t, s) for t, s in ranked[:n_hold]]
+
+        for ticker, score in ranked_targets:
             symbol = self.symbols[ticker]
             price = self.securities[symbol].price
             if price <= 0:
                 continue
             target_qty = int(target_alloc / price)
             if target_qty < 1:
+                skipped.append(f"{ticker}(${price:.0f})")
                 continue
             current_qty = int(self.portfolio[symbol].quantity)
             delta = target_qty - current_qty
             if abs(delta) > 0:
                 self.market_order(symbol, delta)
                 self.total_trades += 1
+                bought += 1
             self.current_holdings.add(ticker)
 
         regime = "UP" if uptrend else "DOWN"
         top3 = [(t, f"{s:.3f}") for t, s in ranked[:3]]
+        skipped_str = f", skipped=[{', '.join(skipped)}]" if skipped else ""
         self.debug(
-            f"REBALANCE [{regime}]: {n_hold} stocks, events={events_this_month} "
-            f"({stocks_with_events} stocks), top3={top3}, eq=${total_value:,.0f}"
+            f"REBALANCE [{regime}]: {n_hold} targets, bought={bought}{skipped_str}, "
+            f"events={events_this_month} ({stocks_with_events} stocks), "
+            f"top3={top3}, eq=${total_value:,.0f}"
         )
 
         # Reset event counts for next month
