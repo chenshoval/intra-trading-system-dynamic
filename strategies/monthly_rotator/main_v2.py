@@ -330,11 +330,11 @@ class MonthlyRotatorV2(QCAlgorithm):
             price = self.securities[symbol].price
             if price <= 0:
                 continue
-            target_qty = round(target_alloc / price, 4)
-            if target_qty < 0.001:
+            target_qty = int(target_alloc / price)
+            if target_qty < 1:
                 continue
-            current_qty = round(self.portfolio[symbol].quantity, 4)
-            delta = round(target_qty - current_qty, 4)
+            current_qty = int(self.portfolio[symbol].quantity)
+            delta = target_qty - current_qty
             if abs(delta) > 0:
                 self.market_order(symbol, delta)
                 self.total_trades += 1
