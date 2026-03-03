@@ -134,6 +134,9 @@ class MonthlyRotatorV2(QCAlgorithm):
             self.midweek_trend_check,
         )
 
+        # Track if initial deploy rebalance has been done
+        self._initial_rebalance_done = False
+
         self.debug(
             f">>> MONTHLY ROTATOR v2 (event-boosted): {len(self.target_tickers)} stocks, "
             f"top {self.top_n}, event_weight={self.w_events}"
@@ -150,6 +153,12 @@ class MonthlyRotatorV2(QCAlgorithm):
 
     def on_data(self, data):
         """Scan news and count events per stock. No trades here."""
+        # One-time: if deployed with no positions, trigger rebalance after IBKR syncs
+        if not self.current_holdings and not self._initial_rebalance_done:
+            self._initial_rebalance_done = True
+            self.debug(f">>> DEPLOY REBALANCE: equity=${self.portfolio.total_portfolio_value:,.0f}")
+            self.monthly_rebalance()
+            return
         for ticker in self.target_tickers:
             news_symbol = self.news_symbols[ticker]
             if not data.contains_key(news_symbol):
@@ -321,11 +330,11 @@ class MonthlyRotatorV2(QCAlgorithm):
             price = self.securities[symbol].price
             if price <= 0:
                 continue
-            target_qty = int(target_alloc / price)
-            if target_qty < 1:
+            target_qty = round(target_alloc / price, 4)
+            if target_qty < 0.001:
                 continue
-            current_qty = int(self.portfolio[symbol].quantity)
-            delta = target_qty - current_qty
+            current_qty = round(self.portfolio[symbol].quantity, 4)
+            delta = round(target_qty - current_qty, 4)
             if abs(delta) > 0:
                 self.market_order(symbol, delta)
                 self.total_trades += 1
