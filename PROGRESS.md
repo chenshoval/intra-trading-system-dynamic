@@ -47,6 +47,14 @@
 4. All use same scoring engine, same signals, same trend gate
 5. Only difference is how many stocks are held and position sizing
 
+**At $100K+ consider:**
+- Adding VIX-based hedge or defensive sector rotation for geopolitical risk
+- The SPY trend gate (MA 10/50) catches sustained declines (worked in 2020 COVID, 2022 bear)
+- But doesn't protect against overnight gap-down shocks (e.g., sudden military escalation)
+- Man Group paper: trend-following protects in every crisis over 95 years because crises develop over weeks
+- At larger capital, adding a SPY put hedge or sector rotation into defense stocks (LMT, RTX, XOM) during elevated geopolitical risk could reduce max drawdown
+- This is a $100K+ problem — at $500-$20K, the trend gate is sufficient
+
 **Current deployment:** v10 on IBKR with $515 (March 2026)
 
 ## How the 50-Stock Universe Was Picked

@@ -322,23 +322,46 @@ class MonthlyRotatorV10Small(QCAlgorithm):
                     self.total_trades += 1
                 self.current_holdings.discard(ticker)
 
-        # Buy new positions — try each by score order, skip what we can't afford
+        # Buy new positions — equal weight across affordable stocks from top ranked
         total_value = self.portfolio.total_portfolio_value
         if total_value <= 0 or n_hold <= 0:
             self.event_counts_this_month.clear()
             return
 
-        target_alloc = total_value / n_hold
-        bought = 0
+        ranked_targets = [(t, s) for t, s in ranked[:n_hold]]
         skipped = []
 
-        ranked_targets = [(t, s) for t, s in ranked[:n_hold]]
-
+        # First pass: figure out which of the top-ranked stocks we can afford
+        affordable = []
         for ticker, score in ranked_targets:
             symbol = self.symbols[ticker]
             price = self.securities[symbol].price
             if price <= 0:
                 continue
+            affordable.append((ticker, score, price))
+
+        # Remove stocks too expensive for equal-weight allocation
+        # Keep removing the most expensive until all remaining fit
+        while affordable:
+            alloc = total_value / len(affordable)
+            too_expensive = [a for a in affordable if a[2] > alloc]
+            if not too_expensive:
+                break
+            for a in too_expensive:
+                skipped.append(f"{a[0]}(${a[2]:.0f})")
+                affordable.remove(a)
+
+        if not affordable:
+            self.debug(f"  No affordable stocks at eq=${total_value:,.0f}")
+            self.event_counts_this_month.clear()
+            return
+
+        # Second pass: buy equal weight
+        target_alloc = total_value / len(affordable)
+        bought = 0
+
+        for ticker, score, price in affordable:
+            symbol = self.symbols[ticker]
             target_qty = int(target_alloc / price)
             if target_qty < 1:
                 skipped.append(f"{ticker}(${price:.0f})")
