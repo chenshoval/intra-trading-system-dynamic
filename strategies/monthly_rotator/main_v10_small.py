@@ -158,11 +158,21 @@ class MonthlyRotatorV10Small(QCAlgorithm):
 
     def on_data(self, data):
         """Scan news and count events per stock. No trades here."""
-        # One-time: if deployed with no positions, trigger rebalance after IBKR syncs
-        if not self.current_holdings and not self._initial_rebalance_done:
+        # One-time on deploy: sync holdings from IBKR, rebalance only if truly empty
+        if not self._initial_rebalance_done:
             self._initial_rebalance_done = True
-            self.debug(f">>> DEPLOY REBALANCE: equity=${self.portfolio.total_portfolio_value:,.0f}")
-            self.monthly_rebalance()
+            # Check IBKR's actual positions, not our internal state
+            for ticker in self.target_tickers:
+                symbol = self.symbols[ticker]
+                if self.portfolio[symbol].invested:
+                    self.current_holdings.add(ticker)
+            invested = len(self.current_holdings)
+            equity = self.portfolio.total_portfolio_value
+            if invested == 0:
+                self.debug(f">>> DEPLOY: No IBKR positions, equity=${equity:,.0f}, rebalancing")
+                self.monthly_rebalance()
+            else:
+                self.debug(f">>> DEPLOY: Found {invested} IBKR positions, equity=${equity:,.0f}, synced")
             return
         for ticker in self.target_tickers:
             news_symbol = self.news_symbols[ticker]
@@ -322,56 +332,47 @@ class MonthlyRotatorV10Small(QCAlgorithm):
                     self.total_trades += 1
                 self.current_holdings.discard(ticker)
 
-        # Buy new positions — equal weight across affordable stocks from top ranked
+        # Buy new positions — rank-fill: 1 share each down the list, max 30% per stock
         total_value = self.portfolio.total_portfolio_value
         if total_value <= 0 or n_hold <= 0:
             self.event_counts_this_month.clear()
             return
 
-        ranked_targets = [(t, s) for t, s in ranked[:n_hold]]
+        max_per_stock = total_value * 0.30  # no single stock gets more than 30%
+        remaining_cash = total_value - sum(
+            abs(self.portfolio[self.symbols[t]].holdings_value)
+            for t in self.current_holdings
+            if t in self.symbols and self.portfolio[self.symbols[t]].invested
+        )
+        bought = 0
         skipped = []
 
-        # First pass: figure out which of the top-ranked stocks we can afford
-        affordable = []
+        ranked_targets = [(t, s) for t, s in ranked[:n_hold]]
+
         for ticker, score in ranked_targets:
+            if ticker in self.current_holdings:
+                continue  # already holding from previous rebalance
             symbol = self.symbols[ticker]
             price = self.securities[symbol].price
             if price <= 0:
                 continue
-            affordable.append((ticker, score, price))
-
-        # Remove stocks too expensive for equal-weight allocation
-        # Keep removing the most expensive until all remaining fit
-        while affordable:
-            alloc = total_value / len(affordable)
-            too_expensive = [a for a in affordable if a[2] > alloc]
-            if not too_expensive:
-                break
-            for a in too_expensive:
-                skipped.append(f"{a[0]}(${a[2]:.0f})")
-                affordable.remove(a)
-
-        if not affordable:
-            self.debug(f"  No affordable stocks at eq=${total_value:,.0f}")
-            self.event_counts_this_month.clear()
-            return
-
-        # Second pass: buy equal weight
-        target_alloc = total_value / len(affordable)
-        bought = 0
-
-        for ticker, score, price in affordable:
-            symbol = self.symbols[ticker]
-            target_qty = int(target_alloc / price)
-            if target_qty < 1:
+            if price > remaining_cash:
+                skipped.append(f"{ticker}(${price:.0f})")
+                continue
+            if price > max_per_stock:
+                skipped.append(f"{ticker}(${price:.0f}>30%)")
+                continue
+            qty = int(min(remaining_cash, max_per_stock) / price)
+            if qty < 1:
                 skipped.append(f"{ticker}(${price:.0f})")
                 continue
             current_qty = int(self.portfolio[symbol].quantity)
-            delta = target_qty - current_qty
-            if abs(delta) > 0:
+            delta = qty - current_qty
+            if delta > 0:
                 self.market_order(symbol, delta)
                 self.total_trades += 1
                 bought += 1
+                remaining_cash -= price * delta
             self.current_holdings.add(ticker)
 
         regime = "UP" if uptrend else "DOWN"
