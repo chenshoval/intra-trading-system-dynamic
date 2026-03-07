@@ -193,6 +193,9 @@ All are large/mega-cap with high liquidity and analyst coverage.
 2. **Threshold-based long/neutral/short**: Score > 0.65 → long, 0.35-0.65 → neutral, < 0.35 → short.
 3. **Congressional trading**: Quiver Quantitative dataset in QC (CLAUDE.md Hypothesis 1).
 4. **Multi-strategy HRP allocation**: When running 2+ strategies, use López de Prado's hierarchical allocation.
+5. **Anti-curve-fitting validation**: Monte Carlo randomization (shuffle trades, check if equity curve survives), noise testing (add small spreads/delays), synthetic testing (run on artificial price series). We did WFA and regime testing — these 3 remain.
+6. **Pairs trading (Kalman/Copula)**: Market-neutral mean-reversion on cointegrated pairs. Completely uncorrelated to momentum. Copula-based pairs could use ML for non-linear dependency modeling.
+7. **Global TabNet directional classifier**: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (not trade metadata). Future ML research track.
 
 ---
 
