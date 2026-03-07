@@ -189,13 +189,14 @@ All are large/mega-cap with high liquidity and analyst coverage.
 - Timeline: after v8 deployment validation (2027+)
 
 ### Other Future Ideas
-1. **Bi-weekly rebalance**: Catches momentum reversals faster. Worth testing at higher capital levels.
-2. **Threshold-based long/neutral/short**: Score > 0.65 → long, 0.35-0.65 → neutral, < 0.35 → short.
-3. **Congressional trading**: Quiver Quantitative dataset in QC (CLAUDE.md Hypothesis 1).
-4. **Multi-strategy HRP allocation**: When running 2+ strategies, use López de Prado's hierarchical allocation.
-5. **Anti-curve-fitting validation**: Monte Carlo randomization (shuffle trades, check if equity curve survives), noise testing (add small spreads/delays), synthetic testing (run on artificial price series). We did WFA and regime testing — these 3 remain.
-6. **Pairs trading (Kalman/Copula)**: Market-neutral mean-reversion on cointegrated pairs. Completely uncorrelated to momentum. Copula-based pairs could use ML for non-linear dependency modeling.
-7. **Global TabNet directional classifier**: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (not trade metadata). Future ML research track.
+1. **Global TabNet directional classifier** ← PRIORITY: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (momentum, volatility, cross-stock, macro — NOT trade metadata like v5 used). Walk-forward validation mandatory. Could run as second uncorrelated strategy alongside momentum rotator.
+2. **Anti-curve-fitting validation**: Monte Carlo randomization, noise testing, synthetic testing. We did WFA and regime testing — these 3 remain.
+3. **Bi-weekly rebalance**: Catches momentum reversals faster. Worth testing at higher capital levels.
+4. **Threshold-based long/neutral/short**: Score > 0.65 → long, 0.35-0.65 → neutral, < 0.35 → short.
+5. **Congressional trading**: Quiver Quantitative dataset in QC (CLAUDE.md Hypothesis 1).
+6. **Multi-strategy HRP allocation**: When running 2+ strategies, use López de Prado's hierarchical allocation.
+7. **Pairs trading (Kalman/Copula)**: Market-neutral mean-reversion on cointegrated pairs. Uncorrelated to momentum.
+8. **Real Sentiment Analysis (v10 future)**: Replace keyword scanning with FinBERT NLP. After v8 deployment validation (2027+).
 
 ---
 
