@@ -26,7 +26,11 @@
       "mcp__jina-mcp__show_api_key",
       "Bash(pip --version)",
       "WebFetch(domain:papers.ssrn.com)",
-      "Bash(curl -s \"http://export.arxiv.org/api/query?search_query=all:momentum+rotation+equity&start=0&max_results=2&sortBy=relevance\")"
+      "Bash(curl -s \"http://export.arxiv.org/api/query?search_query=all:momentum+rotation+equity&start=0&max_results=2&sortBy=relevance\")",
+      "mcp__paper-search__search_papers",
+      "mcp__paper-search__search_arxiv",
+      "mcp__paper-search__search_ssrn",
+      "mcp__paper-search__read_paper"
     ]
   }
 }
