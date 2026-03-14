@@ -24,7 +24,9 @@
       "WebFetch(domain:www.youtube.com)",
       "WebFetch(domain:docs.jina.ai)",
       "mcp__jina-mcp__show_api_key",
-      "Bash(pip --version)"
+      "Bash(pip --version)",
+      "WebFetch(domain:papers.ssrn.com)",
+      "Bash(curl -s \"http://export.arxiv.org/api/query?search_query=all:momentum+rotation+equity&start=0&max_results=2&sortBy=relevance\")"
     ]
   }
 }

@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "paper-search": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--no-project",
+        "--with", "mcp[cli]",
+        "--with", "httpx",
+        "--with", "beautifulsoup4",
+        "python",
+        "mcp_servers/paper_search/server.py"
+      ],
+      "env": {
+        "VIRTUAL_ENV": ""
+      }
+    }
+  }
+}
