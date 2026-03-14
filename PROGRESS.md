@@ -276,14 +276,30 @@ Note: Deposit math done via spreadsheet, NOT in backtest. Backtesting with depos
 - Requires: model hosting, inference pipeline, custom data feed into QC
 - Timeline: after v8 deployment validation (2027+)
 
+### Overnight Hold Strategy — NEW (March 2026)
+- **Research basis**: Kakushadze 2014, Glasserman 2025, Knuteson 2020
+- **Key insight**: Nearly ALL equity returns happen overnight (close→open); intraday returns are flat/negative
+- **Strategy**: Buy top N stocks at 3:45 PM, sell at 9:31 AM next day, sit in cash all day
+- **4 overnight factors** (from Kakushadze): momentum (5d), volatility (21d), liquidity (10d avg vol), size (inverse price)
+- **SPY trend gate**: top 5 in uptrend, top 2 in downtrend (same MA 10/50 as v2)
+- **Two versions built**:
+  - `strategies/overnight_hold/main_v1.py` — OvernightHoldV1, same 50-stock universe as v2
+  - `strategies/overnight_hold/main_v1_broad.py` — OvernightHoldV1Broad, 17 ETFs (SPY, QQQ, sectors, GLD, TLT)
+- **Why uncorrelated to v2**: different timeframe (daily vs monthly), different factors (short-term vs 6-month momentum), different hold period (17.5 hours vs 30 days)
+- **Status**: Built, needs QC backtesting
+- **Backtest periods**: 2016-2020, 2018-2021, 2020-2024, 2022-2023, 2025-2026
+- **Capital**: $100K (clean metrics) then $500 (realistic deployment)
+- **Expected trades**: ~2,500/year (vs v2's ~300/year) — fees are the key risk
+- **Success criteria**: Positive Sharpe, win rate >52%, uncorrelated to v2
+
 ### Other Future Ideas
-1. **Global TabNet directional classifier** ← PRIORITY: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (momentum, volatility, cross-stock, macro — NOT trade metadata like v5 used). Walk-forward validation mandatory. Could run as second uncorrelated strategy alongside momentum rotator.
+1. **Global TabNet directional classifier**: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (momentum, volatility, cross-stock, macro — NOT trade metadata like v5 used). Walk-forward validation mandatory. Could run as second uncorrelated strategy alongside momentum rotator.
 2. **Anti-curve-fitting validation**: Monte Carlo randomization, noise testing, synthetic testing. We did WFA and regime testing — these 3 remain.
 3. **Bi-weekly rebalance**: Catches momentum reversals faster. Worth testing at higher capital levels.
 4. **Threshold-based long/neutral/short**: Score > 0.65 → long, 0.35-0.65 → neutral, < 0.35 → short.
 5. **Congressional trading**: Quiver Quantitative dataset in QC (CLAUDE.md Hypothesis 1).
-6. **Multi-strategy HRP allocation**: When running 2+ strategies, use López de Prado's hierarchical allocation.
-7. **Pairs trading (Kalman/Copula)**: Market-neutral mean-reversion on cointegrated pairs. Uncorrelated to momentum.
+6. **Multi-strategy HRP allocation**: When running 2+ strategies, use Lopez de Prado's hierarchical allocation.
+7. **Pairs trading (Kalman/Copula)**: Market-neutral mean-reversion on cointegrated pairs. Uncorrelated to momentum. See neural Kalman paper (Milstein 2022) and graph clustering paper (Korniejczuk 2024) in `docs/offline-articles/arxiv/`.
 8. **Real Sentiment Analysis (v10 future)**: Replace keyword scanning with FinBERT NLP. After v8 deployment validation (2027+).
 
 ---
