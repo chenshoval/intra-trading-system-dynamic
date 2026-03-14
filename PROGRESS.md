@@ -169,6 +169,94 @@ All are large/mega-cap with high liquidity and analyst coverage.
 - v8 beats v2 in bear market (2022-2023) on every metric — fundamentals shine when momentum fails
 - **Verdict:** Fundamentals help most when it matters most (bear markets). Worth incorporating into v9 with dynamic universe.
 
+## Chart Reading Study & v12 (March 2026)
+
+### What We Did
+1. **Transcribed Micha.Stocks YouTube channel** (Hebrew) using Whisper AI
+   - Audio files in `audio/` folder, transcripts in `transcripts_1.txt`, `transcripts_2.txt`
+   - Extracted chart reading techniques: Inverse H&S, rounding bottom, support/resistance, MA150, volume confirmation, insider buying signals
+
+2. **Built chart reading lessons** — visual tutorials with fake data
+   - `notebooks/05_chart_reading/chart_reading_101.py` → 7 lesson PNGs (candlesticks, S/R, patterns, MAs, volume, full trade setup, cheat sheet)
+   - `notebooks/05_chart_reading/chart_calculations.py` → explains the actual algorithms (swing point detection, S/R clustering, MA formulas)
+   - Output in `notebooks/05_chart_reading/output/`
+
+3. **Gap analysis: chart reading vs our strategies**
+   - ✅ Already using: MA50 trend filter, swing points (forex), MA crossover (SPY gate)
+   - ❌ Missing: volume confirmation, HH/HL/LH/LL swing trend, breakout detection, chart patterns
+
+4. **Built v12 (chart-enhanced scoring)** — `strategies/monthly_rotator/main_v12_chart_enhanced.py`
+   - Adds 3 new signals to v2's 5: volume confirmation (0.15), swing trend structure (0.10), breakout detection (0.10)
+   - Class: `MonthlyRotatorV12ChartEnhanced`
+   - Also built `main_v2_chart_test.py` (MonthlyRotatorV2ChartTest) — exact v2 at $100K with chart signals added for fair A/B test
+
+### v2 vs v2+chart A/B Test Results (March 2026)
+
+Tested at $100K, 15 stocks, same deploy/rebalance logic. Only difference: 8 signals vs 5.
+Results in `results_from_quant_connect/monthlyrotatorv2charttest/`.
+
+| Period | v2 CAGR | v2+chart CAGR | v2 Sharpe | v2+chart Sharpe | v2 MaxDD | v2+chart MaxDD | Winner |
+|--------|---------|---------------|-----------|-----------------|----------|----------------|--------|
+| 2016-2020 | **43.4%** | 33.4% | **1.45** | 0.98 | **35.8%** | 51.0% | **v2** |
+| 2018-2021 | **35.8%** | 31.1% | **1.14** | 0.87 | **35.8%** | 51.0% | **v2** |
+| 2020-2024 | **26.4%** | 25.2% | **0.85** | 0.79 | **32.4%** | 35.1% | **v2** |
+| 2022-2023 | **10.0%** | 4.3% | **0.28** | 0.06 | **27.1%** | 30.2% | **v2** |
+| 2025-2026 | 8.8% | **12.9%** | 0.12 | **0.28** | **21.5%** | 24.0% | **v2+chart** |
+
+**Scoreboard: v2 wins 4, v2+chart wins 1**
+**Averages: v2 Sharpe 0.77 / MaxDD 30.5% vs v2+chart Sharpe 0.60 / MaxDD 38.3%**
+
+**Verdict: Chart signals KILLED.** Adding volume, swing trend, and breakout signals diluted momentum's weight (0.35→0.25) which is v2's strongest signal. Worse Sharpe, worse drawdown in 4/5 periods. The one win (2025-2026) is interesting but insufficient. v2 remains king.
+
+**Lesson learned:** Chart reading concepts (S/R, HH/HL, volume) are useful for *understanding* markets but don't improve *systematic monthly rotation scoring*. They may be better suited for a separate short-term breakout strategy, not as additional signals in a momentum rotator.
+
+### Full Strategy Comparison (all $100K results from `results_from_quant_connect/`)
+
+Generated March 2026 by reading `totalPerformance.portfolioStatistics` from all JSON files.
+Each strategy folder contains: `.json` (full stats), `_orders.csv`, `_trades.csv`, and `.png` (equity curve) per period.
+
+| Strategy | Period | CAGR | Sharpe | Sortino | MaxDD | Net Profit | Start$ |
+|----------|--------|------|--------|---------|-------|------------|--------|
+| **MonthlyRotatorV2** | 2016-2020 | **43.4%** | **1.45** | 1.32 | 35.8% | 508.0% | $100K |
+| **MonthlyRotatorV2** | 2018-2021 | **35.8%** | **1.14** | 1.07 | 35.8% | 240.2% | $100K |
+| **MonthlyRotatorV2** | 2020-2024 | **26.4%** | **0.85** | 0.87 | 32.4% | 223.1% | $100K |
+| **MonthlyRotatorV2** | 2022-2023 | 10.0% | 0.28 | 0.32 | 27.1% | 21.0% | $100K |
+| PureMomentum | 2016-2020 | 42.4% | 1.39 | 1.27 | 35.0% | 485.5% | $100K |
+| PureMomentum | 2022-2023 | 2.6% | -0.01 | -0.01 | 27.5% | 5.3% | $100K |
+| monthlyrotatorv8 | 2016-2020 | 30.7% | 1.13 | 1.04 | 31.2% | 281.6% | $100K |
+| monthlyrotatorv8 | 2022-2023 | **10.5%** | **0.31** | **0.37** | **23.3%** | 22.1% | $100K |
+| CombinedDualEngine | 2016-2020 | 14.8% | 1.28 | 1.31 | 7.1% | 99.5% | $100K |
+| CombinedDualEngine | 2022-2023 | 5.7% | 0.09 | 0.10 | 7.0% | 11.7% | $100K |
+| monthlyrotatorv9 | 2016-2020 | 30.3% | 0.80 | 0.73 | **51.5%** | 276.0% | $100K |
+| monthlyrotatorv9 | 2022-2023 | **-17.4%** | -0.56 | -0.72 | **46.0%** | -31.7% | $100K |
+| monthlyrotatorv10 | 2016-2020 | 43.9% | 1.10 | 1.03 | 45.2% | 519.1% | **$500** |
+| monthlyrotatorv10 | 2022-2023 | 5.3% | 0.10 | 0.11 | 24.6% | 11.0% | **$500** |
+| monthlyrotatorv10b | 2022-2023 | -15.9% | -0.75 | -0.83 | 38.5% | -29.2% | **$500** |
+| monthlyrotatorv10small | 2022-2023 | -7.0% | -0.46 | -0.55 | 34.0% | -13.6% | **$500** |
+
+**Key conclusion:** v2 at $100K remains the best overall. Small account variants (v10/v10b/v10small at $500) have 40-47% max drawdowns due to position concentration. Plan: accumulate $500/month in IBKR, run v2 from day 1 (it skips stocks it can't afford), and it naturally scales into full operation by ~$10-15K.
+
+### Decision: Stick with v2, Accumulate to $100K
+- v2 is deployed on IBKR with $500 (March 2026)
+- Add $500/month manually
+- v2 buys what it can afford (skips expensive stocks via `int(target_alloc/price) < 1 → continue`)
+- By ~$10-15K all 15 positions are buyable
+- v10/v11 scaling ladder exists but v2 handles low capital fine with its skip logic
+- v12 (chart-enhanced) built but NOT yet backtested — will compare vs v2 when ready
+- v12b (self-optimizing walk-forward weights) planned as next step after v12 baseline
+
+### Monthly Deposit Projection (v2 at ~15% CAGR conservative estimate)
+```
+Month 0:   $500
+Month 6:   ~$3,800   (v2 buys ~8 stocks)
+Month 12:  ~$7,500   (v2 buys ~12 stocks)
+Month 24:  ~$16,000  (v2 fully operational, all 15 positions)
+Month 36:  ~$27,000
+Month 48:  ~$42,000
+Month 60:  ~$60,000
+```
+Note: Deposit math done via spreadsheet, NOT in backtest. Backtesting with deposits corrupts Sharpe/return metrics (deposits inflate equity curve). Test strategy quality with fixed capital, project growth with spreadsheet.
+
 ## Roadmap
 
 ### v8 is the upgrade path (when ready)
@@ -337,3 +425,4 @@ results_from_quant_connect/
 8. **SPY trend overlay as dead weight** — holding SPY long for 2 years adds beta not alpha
 9. **PSR is misleading on short periods** — 2-year windows mechanically produce low PSR regardless of strategy quality
 10. **QC "73 parameters" warning is noise** — most are structural choices (tickers, keywords), not tuned parameters
+11. **Chart reading signals don't improve momentum rotation** — volume, swing trend (HH/HL), and breakout detection diluted momentum's weight and made v2 worse in 4/5 periods. Chart concepts are for understanding markets, not for systematic scoring.
