@@ -259,6 +259,31 @@ Note: Deposit math done via spreadsheet, NOT in backtest. Backtesting with depos
 
 ## Roadmap
 
+### Multi-Strategy Path (March 2026 — the plan going forward)
+
+The goal is multiple uncorrelated alpha streams. The path is sequential, not simultaneous.
+
+**Stage 1: Prove v2 out-of-sample** ← CURRENT (March–Sept 2026)
+- v2 deployed on IBKR with $500. DO NOT TOUCH until September 2026.
+- Accumulate $500/month. By Sept should have ~$3.5K.
+- Success criteria: live Sharpe roughly matches backtest expectations (~0.5+ annualized).
+- Most people skip this and just keep backtesting. That's the trap.
+
+**Stage 2: Understand WHY v2 works** (already done)
+- v2 captures monthly cross-sectional momentum in quality large-caps.
+- It weakens when all stocks drop together (2022 bear — correlations spike to 1).
+- This tells us: Strategy 2 needs to profit when equity correlations spike or all equities decline.
+
+**Stage 3: Build a complement, not a copy** (Sept 2026 → Q1 2027)
+- Also evaluate v8 (fundamentals) as a v2 upgrade at September review.
+- Leading candidate for Strategy 2: **commodity momentum** (same proven mechanism, different asset class, no shorting, truly uncorrelated to equities).
+- Everything else we tried was a copy, not a complement (overnight=stocks, v13=stocks+ETFs, v14=stocks with different params). A complement must be a different asset class or mechanism.
+
+**Stage 4: Correlation monitoring** (Q1 2027+)
+- Run rolling correlation between strategies' daily returns.
+- If correlation > 0.4–0.5 during stress periods, they're not actually diversifying.
+- The Sharpe math: two uncorrelated Sharpe 0.8 strategies → combined ~1.1–1.2. Three → 1.5+.
+
 ### v8 is the upgrade path (when ready)
 - v8 (fundamentals on static universe) is the best alternative to v2
 - Lower drawdown in ALL periods, better bear market performance
@@ -276,21 +301,29 @@ Note: Deposit math done via spreadsheet, NOT in backtest. Backtesting with depos
 - Requires: model hosting, inference pipeline, custom data feed into QC
 - Timeline: after v8 deployment validation (2027+)
 
-### Overnight Hold Strategy — NEW (March 2026)
+### Overnight Hold Strategy — KILLED (March 2026)
 - **Research basis**: Kakushadze 2014, Glasserman 2025, Knuteson 2020
-- **Key insight**: Nearly ALL equity returns happen overnight (close→open); intraday returns are flat/negative
-- **Strategy**: Buy top N stocks at 3:45 PM, sell at 9:31 AM next day, sit in cash all day
-- **4 overnight factors** (from Kakushadze): momentum (5d), volatility (21d), liquidity (10d avg vol), size (inverse price)
-- **SPY trend gate**: top 5 in uptrend, top 2 in downtrend (same MA 10/50 as v2)
-- **Two versions built**:
-  - `strategies/overnight_hold/main_v1.py` — OvernightHoldV1, same 50-stock universe as v2
-  - `strategies/overnight_hold/main_v1_broad.py` — OvernightHoldV1Broad, 17 ETFs (SPY, QQQ, sectors, GLD, TLT)
-- **Why uncorrelated to v2**: different timeframe (daily vs monthly), different factors (short-term vs 6-month momentum), different hold period (17.5 hours vs 30 days)
+- **Strategy**: Buy top 5 stocks at 3:45 PM, sell at 9:31 AM, sit in cash all day
+- **v1 backtest (2016-2020, $100K)**: CAR -11.8%, Sharpe -0.42, MaxDD 61%, Final $53K
+- **Root cause**: 5,399 trades × $11.90/trade = **$64K in fees** on a $100K account
+- **The edge was real but tiny**: 52% win rate, $3.24 avg profit/trade, but fees were $11.90/trade
+- **Lesson**: The overnight return premium exists (papers are correct) but it's a market microstructure observation, NOT a tradeable strategy. The papers didn't test with transaction costs. Same lesson as event-driven v5 (ML filter): thin edges get eaten by fees.
+- **VERDICT: KILLED** — even weekly trading (v1b) doesn't fix the per-trade economics ($3.24 edge vs $11.90 cost)
+- Files kept for reference: `strategies/overnight_hold/main_v1.py`, `main_v1_broad.py`, `main_v1b_weekly.py`
+
+### v13 Regime-Aware Sector Rotation — NEW (March 2026)
+- **Research basis**: RegimeFolio (Zhang 2025) — regime-aware sectoral portfolio, Sharpe 1.17
+- **Key insight**: Don't short in bear, don't split capital — SWITCH what you hold based on regime
+- **Our own data validates this**: v5 sectors was bear champion (12% CAR 2022-2023), v2 was bull champion (43% 2016-2020). v13 = v2 in bull + defensive ETFs in bear.
+- **Regime detection (dual gate)**: Bear if SPY MA(10) < MA(50) OR VIX > 25. Conservative — catches both slow declines and sudden crashes.
+- **Bull mode**: Exact v2 scoring engine (50 stocks, 5 signals, top 15)
+- **Bear mode**: Score 10 defensive ETFs (XLU, XLP, XLV, TLT, GLD, XLE, MOO, DBA, XLRE, XLI), hold top 4
+- **Why MOO/DBA**: Current crisis involves oil and fertilizer. In 2022 (Russia/Ukraine), energy+agriculture were the ONLY positive sectors. Scoring engine picks the right defensives for each crisis type.
+- **No shorting**: All bear positions are long-only defensive. Avoids the problems that killed v3-v7.
+- **Anti-whipsaw**: Bear→bull transitions ONLY at monthly rebalance. Bull→bear can happen mid-week (emergency).
+- **Strategy file**: `strategies/monthly_rotator/main_v13_regime.py`
 - **Status**: Built, needs QC backtesting
-- **Backtest periods**: 2016-2020, 2018-2021, 2020-2024, 2022-2023, 2025-2026
-- **Capital**: $100K (clean metrics) then $500 (realistic deployment)
-- **Expected trades**: ~2,500/year (vs v2's ~300/year) — fees are the key risk
-- **Success criteria**: Positive Sharpe, win rate >52%, uncorrelated to v2
+- **Success criteria**: Bull periods within 5% of v2 returns, bear periods max DD < 20% (vs v2's 27%)
 
 ### Other Future Ideas
 1. **Global TabNet directional classifier**: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (momentum, volatility, cross-stock, macro — NOT trade metadata like v5 used). Walk-forward validation mandatory. Could run as second uncorrelated strategy alongside momentum rotator.
