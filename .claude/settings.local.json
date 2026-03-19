@@ -30,7 +30,8 @@
       "mcp__paper-search__search_papers",
       "mcp__paper-search__search_arxiv",
       "mcp__paper-search__search_ssrn",
-      "mcp__paper-search__read_paper"
+      "mcp__paper-search__read_paper",
+      "Bash(python3 -c \":*)"
     ]
   }
 }

@@ -261,28 +261,59 @@ Note: Deposit math done via spreadsheet, NOT in backtest. Backtesting with depos
 
 ### Multi-Strategy Path (March 2026 — the plan going forward)
 
-The goal is multiple uncorrelated alpha streams. The path is sequential, not simultaneous.
+The goal is 4 uncorrelated alpha streams combined with risk parity weighting.
 
-**Stage 1: Prove v2 out-of-sample** ← CURRENT (March–Sept 2026)
-- v2 deployed on IBKR with $500. DO NOT TOUCH until September 2026.
-- Accumulate $500/month. By Sept should have ~$3.5K.
-- Success criteria: live Sharpe roughly matches backtest expectations (~0.5+ annualized).
-- Most people skip this and just keep backtesting. That's the trap.
+**Stage 1: Prove v2 out-of-sample** (March–Sept 2026)
+- v2 deployed on IBKR with $1,000. Accumulating $500/month.
+- First rebalance: April 1, 2026 (month_start schedule).
 
-**Stage 2: Understand WHY v2 works** (already done)
-- v2 captures monthly cross-sectional momentum in quality large-caps.
-- It weakens when all stocks drop together (2022 bear — correlations spike to 1).
-- This tells us: Strategy 2 needs to profit when equity correlations spike or all equities decline.
+**Stage 2: Strategy 2 — Commodity Momentum** ✅ VALIDATED
+- Applies v2's scoring engine to 15 commodity/real-asset ETFs (GLD, SLV, PPLT, XLE, USO, UNG, DBA, MOO, WEAT, CORN, SOYB, CPER, DBC, PDBC, TLT).
+- 4 signals (momentum 0.40, trend 0.25, recent 0.20, vol 0.15), top 4, monthly rebalance.
+- Standalone results are mediocre (Sharpe 0.10–0.45) BUT correlation to v2 is only 0.11.
+- **The 2022 bear market proves the thesis**: v2 alone LOST $7K, commodity MADE $34K, combined MADE $6K.
+- Files: `strategies/commodity_momentum/main_v1.py`
+- Results: `results_from_quant_connect/commoditymomentumv1/` (2016-2020, 2020-2023, 2023-2025)
 
-**Stage 3: Build a complement, not a copy** (Sept 2026 → Q1 2027)
-- Also evaluate v8 (fundamentals) as a v2 upgrade at September review.
-- Leading candidate for Strategy 2: **commodity momentum** (same proven mechanism, different asset class, no shorting, truly uncorrelated to equities).
-- Everything else we tried was a copy, not a complement (overnight=stocks, v13=stocks+ETFs, v14=stocks with different params). A complement must be a different asset class or mechanism.
+**Stage 2b: Combined v2 + Commodity (75/25)** ✅ BACKTESTED
+- Single algorithm running both sleeves with fixed 75/25 capital split.
+- Results across all periods:
+  - 2016-2020: CAR 32.6%, Sharpe 1.30, MaxDD 33.3%, PSR 74.6%
+  - 2020-2023: CAR 21.5%, Sharpe 0.79, MaxDD 29.0%, PSR 34.9%
+  - 2023-2025: CAR 19.5%, Sharpe 0.64, MaxDD 20.8%, PSR 47.9%
+- **Key insight**: Combined has LOWER peak returns than v2 alone (32.6% vs 43.4%) but:
+  - Turns bear market losses into profits (2022: +$6K vs -$7K)
+  - Lower MaxDD in ALL periods
+  - Lower beta in ALL periods (less market dependent)
+  - More stable PSR (doesn't collapse like v2's 80%→18.6%)
+- **v2's PSR is decaying over time**: 80.1% → 56.9% → 39.2% → 18.6% → 26.7%. The combined approach is insurance against this edge decay.
+- Files: `strategies/combined_v2_commodity/main_v1.py`
+- Results: `results_from_quant_connect/combinedv2commodity/` (2016-2020, 2020-2023, 2023-2025)
 
-**Stage 4: Correlation monitoring** (Q1 2027+)
-- Run rolling correlation between strategies' daily returns.
-- If correlation > 0.4–0.5 during stress periods, they're not actually diversifying.
-- The Sharpe math: two uncorrelated Sharpe 0.8 strategies → combined ~1.1–1.2. Three → 1.5+.
+**Stage 3: Build strategies 3 and 4** ← CURRENT
+- Strategy 3 candidate: **Dividend yield rotation** — buy highest-yielding ETFs (DVY, VYM, SCHD, HDV, SPHD). Different mechanism (value/income, not momentum). Works when momentum fails.
+- Strategy 4: TBD — needs to be uncorrelated to all 3 above. Candidates: bond momentum, international equity momentum, or something from research.
+- Goal: 4 uncorrelated streams → combined Sharpe approaching 1.5-2.0.
+
+**Stage 4: Risk parity dynamic weighting**
+- Instead of fixed weights (75/25), use **risk parity** with daily estimation / monthly rebalance.
+- Key insight: estimate covariance matrix from 63-day rolling DAILY returns (252 data points/year) but only rebalance monthly (12 trades/year). Best of both worlds — accurate correlation estimates with low fees.
+- Each strategy contributes equal risk to the portfolio. When one gets volatile (struggling), its weight automatically decreases.
+- Alternative considered: inverse volatility (simpler, recommended at 2 strategies), Kelly criterion (too aggressive, needs accurate Sharpe estimates).
+- Implementation: daily covariance update → monthly solve for equal risk contribution weights → rebalance.
+
+**The Sharpe math with uncorrelation:**
+- 1 strategy (v2): Sharpe ~0.85
+- 2 uncorrelated (v2 + commodity): Sharpe ~1.30
+- 3 uncorrelated: Sharpe ~1.5-1.7
+- 4 uncorrelated: Sharpe ~1.8-2.0
+
+**Key lessons from multi-strategy research:**
+1. A mediocre strategy (Sharpe 0.4) is VALUABLE if it's uncorrelated — it improves combined Sharpe by 60%
+2. Don't judge strategies in isolation — judge them by their contribution to the portfolio
+3. PSR matters more than CAR — a strategy with modest returns and high PSR is better than a home run with low PSR
+4. v2's edge may be decaying (PSR trend: 80%→18%). Multi-strategy is insurance against single-strategy decay
+5. Separate estimation frequency (daily) from rebalance frequency (monthly) to get accurate risk estimates without fee drag
 
 ### v8 is the upgrade path (when ready)
 - v8 (fundamentals on static universe) is the best alternative to v2
@@ -311,19 +342,13 @@ The goal is multiple uncorrelated alpha streams. The path is sequential, not sim
 - **VERDICT: KILLED** — even weekly trading (v1b) doesn't fix the per-trade economics ($3.24 edge vs $11.90 cost)
 - Files kept for reference: `strategies/overnight_hold/main_v1.py`, `main_v1_broad.py`, `main_v1b_weekly.py`
 
-### v13 Regime-Aware Sector Rotation — NEW (March 2026)
+### v13 Regime-Aware Sector Rotation — TESTED, DEPRIORITIZED (March 2026)
 - **Research basis**: RegimeFolio (Zhang 2025) — regime-aware sectoral portfolio, Sharpe 1.17
 - **Key insight**: Don't short in bear, don't split capital — SWITCH what you hold based on regime
-- **Our own data validates this**: v5 sectors was bear champion (12% CAR 2022-2023), v2 was bull champion (43% 2016-2020). v13 = v2 in bull + defensive ETFs in bear.
-- **Regime detection (dual gate)**: Bear if SPY MA(10) < MA(50) OR VIX > 25. Conservative — catches both slow declines and sudden crashes.
-- **Bull mode**: Exact v2 scoring engine (50 stocks, 5 signals, top 15)
-- **Bear mode**: Score 10 defensive ETFs (XLU, XLP, XLV, TLT, GLD, XLE, MOO, DBA, XLRE, XLI), hold top 4
-- **Why MOO/DBA**: Current crisis involves oil and fertilizer. In 2022 (Russia/Ukraine), energy+agriculture were the ONLY positive sectors. Scoring engine picks the right defensives for each crisis type.
-- **No shorting**: All bear positions are long-only defensive. Avoids the problems that killed v3-v7.
-- **Anti-whipsaw**: Bear→bull transitions ONLY at monthly rebalance. Bull→bear can happen mid-week (emergency).
+- **Result**: Regime switching ate bull returns with false signals. Only 40% return halfway through 2016-2020 when v2 does 43% for the full period. Not worth the complexity.
+- **Lesson**: The combined multi-strategy approach (v2 + commodity at 75/25) achieves the same goal (bear protection) more reliably than regime switching.
 - **Strategy file**: `strategies/monthly_rotator/main_v13_regime.py`
-- **Status**: Built, needs QC backtesting
-- **Success criteria**: Bull periods within 5% of v2 returns, bear periods max DD < 20% (vs v2's 27%)
+- **Status**: Deprioritized in favor of multi-strategy combination approach
 
 ### Other Future Ideas
 1. **Global TabNet directional classifier**: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (momentum, volatility, cross-stock, macro — NOT trade metadata like v5 used). Walk-forward validation mandatory. Could run as second uncorrelated strategy alongside momentum rotator.
