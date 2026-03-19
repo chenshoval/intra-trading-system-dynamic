@@ -456,10 +456,136 @@ for period in periods:
 "
 ```
 
+### Multi-strategy correlation matrix script (run from repo root):
+```python
+python3 -c "
+import json, os, glob, sys, io, numpy as np
+from collections import defaultdict
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+# === CONFIGURE: strategy name -> list of JSON result files ===
+strategies = {
+    'v2 Equity': [
+        'results_from_quant_connect/MonthlyRotatorV2/experiment_19_2_2026_1645/2016-2020/Energetic Apricot Cobra.json',
+        'results_from_quant_connect/MonthlyRotatorV2/experiment_19_2_2026_1645/2020-2023/Casual Orange Alpaca.json',
+        'results_from_quant_connect/MonthlyRotatorV2/experiment_19_2_2026_1645/2023-2025/Square Green Rhinoceros.json',
+    ],
+    'Commodity': [
+        'results_from_quant_connect/commoditymomentumv1/2016-2020/Muscular Brown Gorilla.json',
+        'results_from_quant_connect/commoditymomentumv1/2020-2023/Upgraded Brown Butterfly.json',
+        'results_from_quant_connect/commoditymomentumv1/2023-2025/Virtual Apricot Owl.json',
+    ],
+    'Dividend': [
+        'results_from_quant_connect/dividendyieldv1/2016-2020/Hyper Active Yellow Green Sheep.json',
+        'results_from_quant_connect/dividendyieldv1/2020-2023/Swimming Fluorescent Yellow Rhinoceros.json',
+        'results_from_quant_connect/dividendyieldv1/2023-2025/Ugly Light Brown Pig.json',
+    ],
+    'Bond': [
+        'results_from_quant_connect/bondmomentumv1/2016-2020/Square Red Panda.json',
+        'results_from_quant_connect/bondmomentumv1/2020-2023/Emotional Fluorescent Orange Eagle.json',
+        'results_from_quant_connect/bondmomentumv1/2023-2025/Smooth Yellow Green Coyote.json',
+    ],
+}
+# === END CONFIG ===
+
+def get_monthly_pnl(json_file):
+    with open(json_file) as f:
+        d = json.load(f)
+    pnl = d.get('profitLoss', {})
+    monthly = defaultdict(float)
+    for ts, val in pnl.items():
+        monthly[ts[:7]] += val
+    return dict(monthly)
+
+# 1. Standalone stats
+print('=== STANDALONE STATS ===')
+for name, files in strategies.items():
+    print(f'{name}:')
+    for fname in files:
+        period = fname.split('/')[-2]
+        with open(fname) as f:
+            s = json.load(f)['statistics']
+        print(f'  {period}: CAR={s[\"Compounding Annual Return\"]:>8s}  Sharpe={s[\"Sharpe Ratio\"]:>6s}  PSR={s[\"Probabilistic Sharpe Ratio\"]:>8s}  DD={s[\"Drawdown\"]:>7s}  Beta={s[\"Beta\"]:>6s}')
+    print()
+
+# 2. Load all monthly P&L
+all_pnl = {}
+for name, files in strategies.items():
+    all_pnl[name] = {}
+    for f in files:
+        all_pnl[name].update(get_monthly_pnl(f))
+
+# 3. Correlation matrix
+names = list(strategies.keys())
+common = sorted(set.intersection(*[set(all_pnl[n].keys()) for n in names]))
+print(f'=== CORRELATION MATRIX ({len(common)} months) ===')
+arrays = [np.array([all_pnl[n][m] for m in common]) for n in names]
+matrix = np.corrcoef(arrays)
+header = ''.join(f'{n:>12s}' for n in names)
+print(f'{\"\":>12s}{header}')
+for i, n in enumerate(names):
+    row = f'{n:>12s}'
+    for j in range(len(names)):
+        v = matrix[i,j]
+        row += f'{v:>+12.3f}'
+    print(row)
+
+# 4. Crisis months
+print()
+print('=== CRISIS MONTHS ===')
+for m in ['2020-03','2022-01','2022-06','2022-09','2022-10']:
+    vals = '  '.join(f'{n}={all_pnl[n].get(m,0):>+8.0f}' for n in names)
+    print(f'  {m}: {vals}')
+"
+```
+
+### Trade-level analysis script (run from repo root):
+```python
+python3 -c "
+import csv, sys, io
+from collections import defaultdict
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+# === CONFIGURE: path to trades CSV ===
+TRADES_FILE = 'results_from_quant_connect/FOLDER/PERIOD/NAME_trades.csv'
+# === END CONFIG ===
+
+trades = []
+with open(TRADES_FILE) as f:
+    for row in csv.DictReader(f):
+        trades.append(row)
+
+pnl_by_sym = defaultdict(float)
+count_by_sym = defaultdict(int)
+wins_by_sym = defaultdict(int)
+for t in trades:
+    sym = t['Symbols'].strip()
+    pnl = float(t['P&L'])
+    pnl_by_sym[sym] += pnl
+    count_by_sym[sym] += 1
+    if t['IsWin'].strip() == '1':
+        wins_by_sym[sym] += 1
+
+print(f'Total: {len(trades)} trades')
+for sym, pnl in sorted(pnl_by_sym.items(), key=lambda x: x[1], reverse=True):
+    wr = wins_by_sym[sym] / count_by_sym[sym] * 100
+    print(f'  {sym:>6s}: PnL={pnl:>+10,.2f}  trades={count_by_sym[sym]:>3d}  WR={wr:.0f}%')
+
+all_pnl = [float(t['P&L']) for t in trades]
+wins = [p for p in all_pnl if p > 0]
+losses = [p for p in all_pnl if p <= 0]
+print(f'Avg win: {sum(wins)/len(wins):,.2f}  Avg loss: {sum(losses)/len(losses):,.2f}  Ratio: {abs(sum(wins)/len(wins)/(sum(losses)/len(losses))):.2f}')
+"
+```
+
 ### Result folder naming convention:
 ```
 results_from_quant_connect/
 ├── MonthlyRotatorV2/experiment_19_2_2026_1645/   # v2 (deployed)
+├── commoditymomentumv1/                           # Strategy 2: commodity momentum
+├── dividendyieldv1/                               # Strategy 3: dividend yield rotation
+├── bondmomentumv1/                                # Strategy 4: bond momentum
+├── combinedv2commodity/                           # Combined v2+commodity (75/25)
 ├── PureMomentom/expreiment_19_2_2026_1616/       # pure momentum
 ├── CombinedDualEngine/experiment_19_2_2026_1240/ # combined dual (v1+events)
 ├── monthlyrotatorv3/                              # v3 long-short 50
@@ -469,14 +595,12 @@ results_from_quant_connect/
 ├── monthlyrotatorv6/                              # v6 trend overlay
 ├── monthlyrotatorv7/                              # v7 dual (v2+v5)
 ├── monthlyrotatorv8/                              # v8 fundamentals
-├── monthlyrotatorv9/                              # v9 dynamic universe (killed — beta 2.0)
-├── monthlyrotatorv9b/                             # v9b fixed dynamic (still worse than v2)
+├── monthlyrotatorv9/                              # v9 dynamic universe (killed)
+├── monthlyrotatorv9b/                             # v9b fixed dynamic
+├── overnightholdv1/                               # overnight hold (killed)
 ├── Forext/                                        # forex zone bounce (killed)
 ├── trade-events/experiment_18_2_2026_1800/       # trend+events v1
 └── event-driven new refactor/                     # baseline v4 + v5 ML
-    ├── experiment_17_2_2026_1204/                 # v4 baseline
-    ├── experiment_17_2_2026_1300/                 # v4 variant
-    └── experiment_17_2_2026_1440/                 # v5 ML filter
 ```
 
 ---
