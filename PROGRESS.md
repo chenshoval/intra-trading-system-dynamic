@@ -290,17 +290,71 @@ The goal is 4 uncorrelated alpha streams combined with risk parity weighting.
 - Files: `strategies/combined_v2_commodity/main_v1.py`
 - Results: `results_from_quant_connect/combinedv2commodity/` (2016-2020, 2020-2023, 2023-2025)
 
-**Stage 3: Build strategies 3 and 4** ← CURRENT
-- Strategy 3 candidate: **Dividend yield rotation** — buy highest-yielding ETFs (DVY, VYM, SCHD, HDV, SPHD). Different mechanism (value/income, not momentum). Works when momentum fails.
-- Strategy 4: TBD — needs to be uncorrelated to all 3 above. Candidates: bond momentum, international equity momentum, or something from research.
-- Goal: 4 uncorrelated streams → combined Sharpe approaching 1.5-2.0.
+**Stage 3: Strategy 3 — Dividend Yield Rotation** ✅ BACKTESTED, PENDING CORRELATION CHECK
+- Different mechanism from strategies 1 and 2: buys VALUE/INCOME (high-yield ETFs), not momentum.
+- 12 ETFs: DVY, VYM, SCHD, HDV, SPHD, VNQ, XLU, IDV, VYMI, PFF, QYLD, JEPI.
+- 4 signals: yield proxy (0.35), trend (0.25), recent (0.20), vol (0.20). NO momentum signal.
+- Standalone results:
+  - 2016-2020: CAR 12.0%, Sharpe 0.52, PSR 15.4%, MaxDD 37.1%, Beta 0.84
+  - 2020-2023: CAR 7.6%, Sharpe 0.29, PSR 7.9%, MaxDD 32.8%, Beta 0.75
+  - 2023-2025: CAR 14.3%, Sharpe 0.55, PSR 61.1%, MaxDD 11.3%, Beta 0.52
+- **PSR 61.1% in 2023-2025 is the highest of any strategy in any period.**
+- **Concern**: Beta 0.84 to SPY — may be too correlated to v2 (both are equities).
+- **2022 bear**: Lost $4.8K (better than v2's -$7K, but worse than commodity's +$34K).
+- **NEXT STEP**: Run v2 on matching periods (2020-2023, 2023-2025), then compute pairwise beta between all strategies to determine if dividend adds real diversification.
+- Files: `strategies/dividend_yield/main_v1.py`
+- Results: `results_from_quant_connect/dividendyieldv1/` (2016-2020, 2020-2023, 2023-2025)
 
-**Stage 4: Risk parity dynamic weighting**
-- Instead of fixed weights (75/25), use **risk parity** with daily estimation / monthly rebalance.
-- Key insight: estimate covariance matrix from 63-day rolling DAILY returns (252 data points/year) but only rebalance monthly (12 trades/year). Best of both worlds — accurate correlation estimates with low fees.
-- Each strategy contributes equal risk to the portfolio. When one gets volatile (struggling), its weight automatically decreases.
-- Alternative considered: inverse volatility (simpler, recommended at 2 strategies), Kelly criterion (too aggressive, needs accurate Sharpe estimates).
-- Implementation: daily covariance update → monthly solve for equal risk contribution weights → rebalance.
+**Strategy 4: TBD** — pending Strategy 3 correlation check
+- Candidates: bond momentum (TLT, IEF, SHY, TIP, BND, AGG), low-volatility factor (SPLV, USMV), or pairs trading (high complexity, parked for now).
+- Must be uncorrelated to ALL 3 existing strategies — hardest column to fill.
+- Bond momentum is the leading candidate: historically near-zero or NEGATIVE correlation to equities in crises (flight to safety). Man Group inflation paper (ssrn-3813202) shows trend-following works across all asset classes including bonds over 95 years.
+
+**Stage 4: Risk parity dynamic weighting with correlation monitoring** ← THE GOLD
+- This is the core innovation of the system. Two key ideas:
+
+**Idea 1: Separate estimation frequency from rebalance frequency**
+- Estimate covariance/risk from **63-day rolling DAILY** returns (252+ data points/year).
+- But only REBALANCE **monthly** (12 trades/year, low fees).
+- This solves the problem of noisy estimates from monthly-only data (only 12 points/year)
+  while keeping transaction costs low.
+- Implementation: every trading day, update a rolling covariance matrix. On the 1st of each month,
+  solve for equal risk contribution weights using the latest matrix, then rebalance.
+
+**Idea 2: Rolling correlation matrix to monitor strategy health**
+- Compute pairwise correlation between all strategy return streams over a rolling window.
+- Track how correlations change over time. If two strategies that were uncorrelated (rho=0.1)
+  start correlating (rho>0.5), that's a warning: diversification is breaking down.
+- This feeds into the risk parity weighting automatically — if two strategies become correlated,
+  their combined risk contribution increases, so risk parity reduces both their weights.
+
+**The target correlation matrix (what "good" looks like for 4 strategies):**
+```
+              Equity   Commodity  Dividend   Strat4
+Equity        1.00     ~0.10      ~0.30      ~0.10
+Commodity     0.10     1.00       ~0.10      ~0.10
+Dividend      0.30     0.10       1.00       ~0.20
+Strat4        0.10     0.10       0.20       1.00
+```
+- Off-diagonal all below 0.4 = diversification works.
+- At least one pair near zero or negative = crisis insurance.
+- No pair above 0.6 = not just a weaker copy of another strategy.
+- If any pair exceeds 0.6 → investigate, possibly kill the weaker strategy.
+
+**How we validate BEFORE building combined algo:**
+1. Run all strategies on identical time periods (2016-2020, 2020-2023, 2023-2025).
+2. For each pair, compute beta of strategy A regressed on strategy B's returns.
+3. Check worst-month behavior: during March 2020 and Sept-Oct 2022, did they move together or apart?
+4. Only build the combined risk-parity algorithm if the matrix looks good.
+5. This is cheaper than backtesting a full combined algo just to discover they're correlated.
+
+**What the research supports (alignment check March 2026):**
+- Garrone 2026: validates v2's cross-sectional ranking approach ✅
+- Maguire 2018: combine independent strategies > improve one ✅ (we're doing exactly this)
+- Man Group (ssrn-3813202): trend-following works across all asset classes, all regimes ✅ (commodity + future bond strategy)
+- Lopez de Prado (ssrn-2708678): hierarchical allocation for multi-strategy ✅ (risk parity is a simpler variant)
+- Moon 2019: mean reversion fails with costs ✅ (we avoided mean reversion)
+- Overnight strategy papers (Kakushadze, Glasserman, Knuteson): premium is real but NOT tradeable with our cost structure ✅ (tested and killed)
 
 **The Sharpe math with uncorrelation:**
 - 1 strategy (v2): Sharpe ~0.85
@@ -314,6 +368,8 @@ The goal is 4 uncorrelated alpha streams combined with risk parity weighting.
 3. PSR matters more than CAR — a strategy with modest returns and high PSR is better than a home run with low PSR
 4. v2's edge may be decaying (PSR trend: 80%→18%). Multi-strategy is insurance against single-strategy decay
 5. Separate estimation frequency (daily) from rebalance frequency (monthly) to get accurate risk estimates without fee drag
+6. Beta to SPY is a useful proxy for correlation but NOT the same as pairwise correlation between strategies — always compute both
+7. Check worst-month behavior specifically — normal-times correlation can hide crisis-times correlation
 
 ### v8 is the upgrade path (when ready)
 - v8 (fundamentals on static universe) is the best alternative to v2
