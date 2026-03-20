@@ -1,0 +1,595 @@
+129
+|
+10:43:17
+:
+All files saved
+130
+|
+10:43:20
+:
+Built project 'Combined4StratRiskParity' in Cloud for Lean Engine 2.5.0.0.17577, with Id '27e57f-a88826'
+131
+|
+10:44:02
+:
+Built project 'Combined4StratRiskParity' in Cloud for Lean Engine 2.5.0.0.17577, with Id '9db3c9-455f03'
+132
+|
+10:44:06
+:
+Received backtest 'Adaptable Sky Blue Antelope' request
+133
+|
+10:44:13
+:
+Initializing algorithm...
+134
+|
+10:44:13
+:
+Launching analysis for 6ce43e82c1b60892ce952bb9d421c85e with LEAN Engine v2.5.0.0.17577
+135
+|
+10:44:13
+:
+Backtest deployed in 5.539 seconds
+136
+|
+10:44:18
+:
+2020-01-01 00:00:00 >>> 4-STRAT RISK PARITY: 50 stocks + 15 commodity + 12 dividend + 12 bond ETFs, cov_window=63
+137
+|
+10:44:18
+:
+Warning: when performing history requests, the start date will be adjusted if there are numerical precision errors in the factor files.
+138
+|
+10:44:18
+:
+Warning: when performing history requests, the start date will be adjusted if it is before the first known date for the symbol.
+139
+|
+10:44:18
+:
+2020-01-01 00:55:20 >>> DEPLOY REBALANCE: equity=$100,000
+140
+|
+10:44:18
+:
+2020-01-01 00:55:20 Risk parity: only 0 days, need 63. Using equal weight.
+141
+|
+10:44:18
+:
+2020-01-01 00:55:20 REBALANCE [UP]: weights=[25%,25%,25%,25%] EQ=15($25,000) CM=4($25,000) DIV=4($25,000) BOND=4($25,000) events=0 total=$100,000
+142
+|
+10:44:18
+:
+2020-01-02 10:00:00 Risk parity: only 0 days, need 63. Using equal weight.
+143
+|
+10:44:18
+:
+2020-01-02 10:00:00 REBALANCE [UP]: weights=[25%,25%,25%,25%] EQ=15($25,000) CM=4($25,000) DIV=4($25,000) BOND=4($25,000) events=19 total=$100,000
+144
+|
+10:44:31
+:
+2020-02-03 10:00:00 Risk parity: only 21 days, need 63. Using equal weight.
+145
+|
+10:44:31
+:
+2020-02-03 10:00:00 REBALANCE [UP]: weights=[25%,25%,25%,25%] EQ=15($25,000) CM=4($25,000) DIV=4($25,000) BOND=4($25,000) events=1519 total=$100,000
+146
+|
+10:44:40
+:
+2020-03-02 10:00:00 Risk parity: only 40 days, need 63. Using equal weight.
+147
+|
+10:44:40
+:
+2020-03-02 10:00:00 REBALANCE [UP]: weights=[25%,25%,25%,25%] EQ=15($24,200) CM=4($24,200) DIV=4($24,200) BOND=4($24,200) events=942 total=$96,802
+148
+|
+10:44:47
+:
+2020-03-18 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+149
+|
+10:44:53
+:
+2020-04-01 10:00:00 Risk parity: only 62 days, need 63. Using equal weight.
+150
+|
+10:44:53
+:
+2020-04-01 10:00:00 REBALANCE [DOWN]: weights=[25%,25%,25%,25%] EQ=5($22,336) CM=3($22,336) DIV=3($22,336) BOND=3($22,336) events=549 total=$89,344
+151
+|
+10:44:53
+:
+2020-04-01 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+152
+|
+10:45:05
+:
+2020-04-29 10:30:00 RECOVERY: uptrend restored
+153
+|
+10:45:05
+:
+2020-05-01 10:00:00 REBALANCE [UP]: weights=[29%,22%,27%,22%] EQ=15($27,166) CM=4($20,730) DIV=4($25,807) BOND=4($20,722) events=1051 total=$94,425
+154
+|
+10:45:17
+:
+2020-06-01 10:00:00 REBALANCE [UP]: weights=[10%,19%,32%,40%] EQ=15($9,493) CM=4($18,000) DIV=4($30,815) BOND=4($38,919) events=1303 total=$97,226
+155
+|
+10:45:29
+:
+2020-07-01 10:00:00 REBALANCE [UP]: weights=[8%,8%,42%,42%] EQ=15($8,204) CM=4($8,204) DIV=4($41,021) BOND=4($41,021) events=1269 total=$98,451
+156
+|
+10:45:46
+:
+2020-08-03 10:00:00 REBALANCE [UP]: weights=[34%,47%,9%,9%] EQ=15($34,583) CM=4($48,903) DIV=4($9,781) BOND=4($9,781) events=2771 total=$103,048
+157
+|
+10:45:57
+:
+2020-09-01 10:00:00 REBALANCE [UP]: weights=[8%,8%,42%,42%] EQ=15($9,064) CM=4($9,064) DIV=4($45,322) BOND=4($45,322) events=1612 total=$108,773
+158
+|
+10:46:09
+:
+2020-09-30 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+159
+|
+10:46:12
+:
+2020-10-01 10:00:00 REBALANCE [DOWN]: weights=[8%,8%,42%,42%] EQ=5($8,914) CM=3($8,914) DIV=3($44,570) BOND=3($44,570) events=1187 total=$106,969
+160
+|
+10:46:15
+:
+2020-10-07 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+161
+|
+10:46:18
+:
+2020-10-14 10:30:00 RECOVERY: uptrend restored
+162
+|
+10:46:34
+:
+2020-11-02 10:00:00 REBALANCE [DOWN]: weights=[10%,41%,35%,14%] EQ=5($11,012) CM=3($43,720) DIV=3($37,317) BOND=3($14,872) events=4636 total=$106,921
+163
+|
+10:46:38
+:
+2020-11-04 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+164
+|
+10:46:43
+:
+2020-11-11 10:30:00 RECOVERY: uptrend restored
+165
+|
+10:47:05
+:
+2020-12-01 10:00:00 REBALANCE [UP]: weights=[13%,15%,52%,19%] EQ=15($14,712) CM=4($16,848) DIV=4($58,623) BOND=4($21,749) events=2176 total=$111,933
+166
+|
+10:47:20
+:
+2021-01-04 10:00:00 REBALANCE [UP]: weights=[27%,21%,27%,25%] EQ=15($31,140) CM=4($24,488) DIV=4($31,355) BOND=4($28,792) events=1460 total=$115,774
+167
+|
+10:47:36
+:
+2021-02-01 10:00:00 REBALANCE [UP]: weights=[25%,18%,29%,28%] EQ=15($28,794) CM=4($20,480) DIV=4($34,057) BOND=4($32,351) events=2364 total=$115,682
+168
+|
+10:47:51
+:
+2021-03-01 10:00:00 REBALANCE [UP]: weights=[31%,6%,31%,31%] EQ=15($37,050) CM=4($7,410) DIV=4($37,050) BOND=4($37,050) events=2040 total=$118,560
+169
+|
+10:48:01
+:
+2021-04-01 10:00:00 REBALANCE [UP]: weights=[17%,36%,8%,40%] EQ=15($20,465) CM=4($43,652) DIV=4($9,671) BOND=4($48,353) events=1365 total=$122,141
+170
+|
+10:48:19
+:
+2021-05-03 10:00:00 REBALANCE [UP]: weights=[8%,42%,8%,42%] EQ=15($10,668) CM=4($53,338) DIV=4($10,668) BOND=4($53,338) events=2629 total=$128,012
+171
+|
+10:48:32
+:
+2021-06-01 10:00:00 REBALANCE [UP]: weights=[8%,42%,8%,42%] EQ=15($10,798) CM=4($53,988) DIV=4($10,798) BOND=4($53,988) events=2112 total=$129,571
+172
+|
+10:48:44
+:
+2021-07-01 10:00:00 REBALANCE [UP]: weights=[9%,21%,41%,30%] EQ=15($11,225) CM=4($28,010) DIV=4($53,001) BOND=4($38,617) events=775 total=$130,852
+173
+|
+10:48:50
+:
+2021-08-02 10:00:00 REBALANCE [UP]: weights=[59%,12%,12%,17%] EQ=15($77,988) CM=4($15,598) DIV=4($15,598) BOND=4($22,800) events=803 total=$131,984
+174
+|
+10:48:57
+:
+2021-09-01 10:00:00 REBALANCE [UP]: weights=[8%,42%,8%,42%] EQ=15($11,398) CM=4($56,989) DIV=4($11,398) BOND=4($56,989) events=336 total=$136,774
+175
+|
+10:49:00
+:
+2021-09-29 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+176
+|
+10:49:00
+:
+2021-10-01 10:00:00 REBALANCE [DOWN]: weights=[10%,16%,48%,26%] EQ=5($13,536) CM=3($23,203) DIV=3($67,682) BOND=3($36,583) events=173 total=$141,004
+177
+|
+10:49:00
+:
+2021-10-06 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+178
+|
+10:49:10
+:
+2021-10-27 10:30:00 RECOVERY: uptrend restored
+179
+|
+10:49:13
+:
+2021-11-01 10:00:00 REBALANCE [UP]: weights=[8%,41%,8%,42%] EQ=15($12,192) CM=4($58,233) DIV=4($12,192) BOND=4($60,961) events=1890 total=$143,578
+180
+|
+10:49:28
+:
+2021-12-01 10:00:00 REBALANCE [UP]: weights=[9%,34%,9%,47%] EQ=15($13,145) CM=4($47,813) DIV=4($13,145) BOND=4($65,725) events=1819 total=$139,828
+181
+|
+10:49:40
+:
+2022-01-03 10:00:00 REBALANCE [UP]: weights=[34%,25%,7%,34%] EQ=15($47,686) CM=4($35,113) DIV=4($9,537) BOND=4($47,686) events=814 total=$140,022
+182
+|
+10:49:50
+:
+2022-01-26 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+183
+|
+10:49:53
+:
+2022-02-01 10:00:00 REBALANCE [DOWN]: weights=[8%,32%,29%,31%] EQ=5($11,377) CM=3($42,876) DIV=3($38,806) BOND=3($42,739) events=1383 total=$135,798
+184
+|
+10:49:56
+:
+2022-02-02 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+185
+|
+10:50:05
+:
+2022-03-01 10:00:00 REBALANCE [DOWN]: weights=[12%,31%,10%,48%] EQ=5($16,140) CM=3($42,127) DIV=3($13,245) BOND=3($66,226) events=1842 total=$137,737
+186
+|
+10:50:09
+:
+2022-03-02 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+187
+|
+10:50:18
+:
+2022-03-30 10:30:00 RECOVERY: uptrend restored
+188
+|
+10:50:18
+:
+2022-04-01 10:00:00 REBALANCE [UP]: weights=[13%,34%,10%,43%] EQ=15($18,440) CM=4($47,926) DIV=4($13,551) BOND=4($61,169) events=969 total=$141,086
+189
+|
+10:50:27
+:
+2022-04-27 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+190
+|
+10:50:31
+:
+2022-05-02 10:00:00 REBALANCE [DOWN]: weights=[19%,26%,10%,45%] EQ=5($27,165) CM=3($36,490) DIV=3($13,560) BOND=3($62,674) events=1921 total=$139,889
+191
+|
+10:50:31
+:
+2022-05-04 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+192
+|
+10:50:47
+:
+2022-06-01 10:00:00 REBALANCE [DOWN]: weights=[10%,10%,29%,51%] EQ=5($14,413) CM=3($14,413) DIV=3($40,746) BOND=3($72,067) events=1541 total=$141,639
+193
+|
+10:50:47
+:
+2022-06-01 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+194
+|
+10:50:57
+:
+2022-07-01 10:00:00 REBALANCE [DOWN]: weights=[12%,12%,19%,58%] EQ=5($15,297) CM=3($15,297) DIV=3($24,766) BOND=3($76,484) events=379 total=$131,843
+195
+|
+10:50:57
+:
+2022-07-06 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+196
+|
+10:51:07
+:
+2022-08-01 10:00:00 REBALANCE [UP]: weights=[12%,12%,18%,59%] EQ=15($15,489) CM=4($15,489) DIV=4($23,580) BOND=4($77,443) events=1430 total=$132,001
+197
+|
+10:51:20
+:
+2022-09-01 10:00:00 REBALANCE [UP]: weights=[13%,13%,62%,13%] EQ=15($16,263) CM=4($16,263) DIV=4($81,314) BOND=4($16,263) events=1716 total=$130,102
+198
+|
+10:51:26
+:
+2022-09-14 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+199
+|
+10:51:32
+:
+2022-10-03 10:00:00 REBALANCE [DOWN]: weights=[39%,19%,8%,34%] EQ=5($48,318) CM=3($23,690) DIV=3($9,664) BOND=3($41,510) events=507 total=$123,181
+200
+|
+10:51:32
+:
+2022-10-05 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+201
+|
+10:51:42
+:
+2022-11-01 10:00:00 REBALANCE [DOWN]: weights=[18%,37%,7%,37%] EQ=5($23,704) CM=3($49,009) DIV=3($9,802) BOND=3($49,009) events=1446 total=$131,525
+202
+|
+10:51:42
+:
+2022-11-02 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+203
+|
+10:51:46
+:
+2022-11-09 10:30:00 RECOVERY: uptrend restored
+204
+|
+10:51:55
+:
+2022-12-01 10:00:00 REBALANCE [UP]: weights=[13%,13%,62%,13%] EQ=15($16,670) CM=4($16,670) DIV=4($83,348) BOND=4($16,670) events=1864 total=$133,356
+205
+|
+10:52:08
+:
+2022-12-28 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+206
+|
+10:52:08
+:
+2023-01-03 10:00:00 REBALANCE [DOWN]: weights=[8%,42%,8%,42%] EQ=5($10,906) CM=3($54,530) DIV=3($10,906) BOND=3($54,530) events=609 total=$130,871
+207
+|
+10:52:08
+:
+2023-01-04 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+208
+|
+10:52:14
+:
+2023-01-25 10:30:00 RECOVERY: uptrend restored
+209
+|
+10:52:17
+:
+2023-02-01 10:00:00 REBALANCE [UP]: weights=[40%,32%,8%,20%] EQ=15($52,852) CM=4($42,315) DIV=4($10,570) BOND=4($26,049) events=1175 total=$131,786
+210
+|
+10:52:30
+:
+2023-03-01 10:00:00 REBALANCE [UP]: weights=[33%,35%,7%,25%] EQ=15($42,032) CM=4($45,169) DIV=4($9,034) BOND=4($31,286) events=1435 total=$127,521
+211
+|
+10:52:36
+:
+2023-03-15 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+212
+|
+10:52:43
+:
+2023-04-03 10:00:00 REBALANCE [DOWN]: weights=[13%,13%,62%,13%] EQ=5($15,953) CM=3($15,953) DIV=3($79,767) BOND=3($15,953) events=837 total=$127,627
+213
+|
+10:52:54
+:
+2023-05-01 10:00:00 REBALANCE [UP]: weights=[8%,41%,8%,42%] EQ=15($10,890) CM=4($52,811) DIV=4($10,890) BOND=4($54,449) events=1387 total=$129,040
+214
+|
+10:53:05
+:
+2023-06-01 10:00:00 REBALANCE [UP]: weights=[58%,12%,19%,12%] EQ=15($73,412) CM=4($14,682) DIV=4($23,482) BOND=4($14,682) events=899 total=$126,259
+215
+|
+10:53:16
+:
+2023-07-03 10:00:00 REBALANCE [UP]: weights=[8%,42%,8%,42%] EQ=15($11,058) CM=4($55,289) DIV=4($11,058) BOND=4($55,289) events=338 total=$132,694
+216
+|
+10:53:26
+:
+2023-08-01 10:00:00 REBALANCE [UP]: weights=[42%,8%,42%,8%] EQ=15($56,368) CM=4($11,274) DIV=4($56,368) BOND=4($11,274) events=1197 total=$135,283
+217
+|
+10:53:29
+:
+2023-08-23 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+218
+|
+10:53:32
+:
+2023-09-01 10:00:00 REBALANCE [DOWN]: weights=[8%,42%,8%,42%] EQ=5($10,936) CM=3($54,678) DIV=3($10,936) BOND=3($54,678) events=785 total=$131,226
+219
+|
+10:53:32
+:
+2023-09-06 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+220
+|
+10:53:35
+:
+2023-09-13 10:30:00 RECOVERY: uptrend restored
+221
+|
+10:53:35
+:
+2023-09-20 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+222
+|
+10:53:39
+:
+2023-10-02 10:00:00 REBALANCE [DOWN]: weights=[42%,8%,42%,8%] EQ=5($54,681) CM=3($10,936) DIV=3($54,681) BOND=3($10,936) events=95 total=$131,235
+223
+|
+10:53:39
+:
+2023-10-04 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+224
+|
+10:53:48
+:
+2023-11-01 10:00:00 REBALANCE [DOWN]: weights=[13%,13%,62%,13%] EQ=5($15,829) CM=3($15,829) DIV=3($79,145) BOND=3($15,829) events=835 total=$126,632
+225
+|
+10:53:48
+:
+2023-11-01 10:30:00 EMERGENCY: downtrend, reduced all sleeves
+226
+|
+10:53:52
+:
+2023-11-15 10:30:00 RECOVERY: uptrend restored
+227
+|
+10:53:56
+:
+2023-12-01 10:00:00 REBALANCE [UP]: weights=[8%,42%,8%,42%] EQ=15($10,925) CM=4($54,627) DIV=4($10,925) BOND=4($54,627) events=939 total=$131,105
+228
+|
+10:54:00
+:
+Algorithm '6ce43e82c1b60892ce952bb9d421c85e' completed
+229
+|
+10:54:00
+:
+2023-12-31 23:51:21 RESULTS: Return=31.89% Final=$132,458 Rebalances=49 Trades=1471 EmergencyExits=25 Events=63816
+230
+|
+10:54:00
+:
+2023-12-31 23:51:21 REGIME: Up=33 Down=16
+231
+|
+10:54:00
+:
+2023-12-31 23:51:21 FINAL WEIGHTS: EQ=8% CM=42% DIV=8% BOND=42%
+232
+|
+10:54:00
+:
+2023-12-31 23:51:21 MONTHLY: Avg=0.63% Best=6.77% Worst=-7.70% Std=3.15% Win=31 Loss=18 WR=63% Sharpe=0.20
+233
+|
+10:54:00
+:
+2023-12-31 23:51:21 WEIGHT HISTORY (49 rebalances):
+234
+|
+10:54:00
+:
+2023-12-31 23:51:21 2023-07-03: EQ=8% CM=42% DIV=8% BOND=42%
+235
+|
+10:54:00
+:
+2023-12-31 23:51:21 2023-08-01: EQ=42% CM=8% DIV=42% BOND=8%
+236
+|
+10:54:00
+:
+2023-12-31 23:51:21 2023-09-01: EQ=8% CM=42% DIV=8% BOND=42%
+237
+|
+10:54:00
+:
+2023-12-31 23:51:21 2023-10-02: EQ=42% CM=8% DIV=42% BOND=8%
+238
+|
+10:54:00
+:
+2023-12-31 23:51:21 2023-11-01: EQ=13% CM=13% DIV=62% BOND=13%
+239
+|
+10:54:00
+:
+2023-12-31 23:51:21 2023-12-01: EQ=8% CM=42% DIV=8% BOND=42%
+240
+|
+10:54:00
+:
+2023-12-31 23:51:21 PNL: 2020-01:$0 | 2020-02:$-3,198 | 2020-03:$-7,458 | 2020-04:$5,081 | 2020-05:$2,801 | 2020-06:$1,225 | 2020-07:$4,597 | 2020-08:$5,725 | 2020-09:$-1,804 | 2020-10:$-48 | 2020-11:...
+241
+|
+10:54:00
+:
+Algorithm Id:(6ce43e82c1b60892ce952bb9d421c85e) completed in 588.81 seconds at 69k data points per second. Processing total of 40,443,473 data points.
+242
+|
+10:54:00
+:
+Due to numerical precision issues in the factor file, data for the following symbols was adjust to a later starting date: [JEPI, 5/20/2020], [ABNB, 12/9/2020]
+243
+|
+10:54:00
+:
+The starting dates for the following symbols have been adjusted to match their map files first date: [JEPI, 2020-05-21], [ABNB, 2020-12-10]
+244
+|
+10:54:27
+:
+Built project 'Combined4StratRiskParity' in Cloud for Lean Engine 2.5.0.0.17577, with Id '7ca058-06e32a'
+245
+|
+10:54:29
+:
+Building project 'Combined4StratRiskParity' in Cloud, with Signature 'd610ef'
+246
+|
+10:54:30
+:
+Built project 'Combined4StratRiskParity' in Cloud for Lean Engine 2.5.0.0.17577, with Id 'ed62a9-d610ef'
+247
+|
+10:55:20
+:
+Received backtest 'Measured Tan Hyena' request
