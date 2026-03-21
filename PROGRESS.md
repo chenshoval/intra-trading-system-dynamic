@@ -290,86 +290,87 @@ The goal is 4 uncorrelated alpha streams combined with risk parity weighting.
 - Files: `strategies/combined_v2_commodity/main_v1.py`
 - Results: `results_from_quant_connect/combinedv2commodity/` (2016-2020, 2020-2023, 2023-2025)
 
-**Stage 3: Strategy 3 — Dividend Yield Rotation** ✅ BACKTESTED, PENDING CORRELATION CHECK
-- Different mechanism from strategies 1 and 2: buys VALUE/INCOME (high-yield ETFs), not momentum.
-- 12 ETFs: DVY, VYM, SCHD, HDV, SPHD, VNQ, XLU, IDV, VYMI, PFF, QYLD, JEPI.
-- 4 signals: yield proxy (0.35), trend (0.25), recent (0.20), vol (0.20). NO momentum signal.
-- Standalone results:
-  - 2016-2020: CAR 12.0%, Sharpe 0.52, PSR 15.4%, MaxDD 37.1%, Beta 0.84
-  - 2020-2023: CAR 7.6%, Sharpe 0.29, PSR 7.9%, MaxDD 32.8%, Beta 0.75
-  - 2023-2025: CAR 14.3%, Sharpe 0.55, PSR 61.1%, MaxDD 11.3%, Beta 0.52
-- **PSR 61.1% in 2023-2025 is the highest of any strategy in any period.**
-- **Concern**: Beta 0.84 to SPY — may be too correlated to v2 (both are equities).
-- **2022 bear**: Lost $4.8K (better than v2's -$7K, but worse than commodity's +$34K).
-- **NEXT STEP**: Run v2 on matching periods (2020-2023, 2023-2025), then compute pairwise beta between all strategies to determine if dividend adds real diversification.
+**Stage 3: Strategy 3 — Dividend Yield Rotation** ✅ VALIDATED
+- 12 high-dividend ETFs, yield proxy scoring. PSR 61.1% in 2023-2025 (highest ever).
+- Correlation to v2: 0.45 (borderline but acceptable). Correlation to commodity: 0.31 (good).
 - Files: `strategies/dividend_yield/main_v1.py`
-- Results: `results_from_quant_connect/dividendyieldv1/` (2016-2020, 2020-2023, 2023-2025)
 
-**Strategy 4: TBD** — pending Strategy 3 correlation check
-- Candidates: bond momentum (TLT, IEF, SHY, TIP, BND, AGG), low-volatility factor (SPLV, USMV), or pairs trading (high complexity, parked for now).
-- Must be uncorrelated to ALL 3 existing strategies — hardest column to fill.
-- Bond momentum is the leading candidate: historically near-zero or NEGATIVE correlation to equities in crises (flight to safety). Man Group inflation paper (ssrn-3813202) shows trend-following works across all asset classes including bonds over 95 years.
+**Strategy 4 — Bond Momentum** ✅ VALIDATED
+- 12 bond ETFs (TLT, ZROZ, IEF, SHY, etc.). Beta -0.21 to SPY (negative!).
+- Correlation to v2: 0.15 (excellent). Only strategy that made money during COVID March 2020.
+- Standalone Sharpe is weak (-0.97 to 0.47), but uncorrelation value is high.
+- Files: `strategies/bond_momentum/main_v1.py`
 
-**Stage 4: Risk parity dynamic weighting with correlation monitoring** ← THE GOLD
-- This is the core innovation of the system. Two key ideas:
-
-**Idea 1: Separate estimation frequency from rebalance frequency**
-- Estimate covariance/risk from **63-day rolling DAILY** returns (252+ data points/year).
-- But only REBALANCE **monthly** (12 trades/year, low fees).
-- This solves the problem of noisy estimates from monthly-only data (only 12 points/year)
-  while keeping transaction costs low.
-- Implementation: every trading day, update a rolling covariance matrix. On the 1st of each month,
-  solve for equal risk contribution weights using the latest matrix, then rebalance.
-
-**Idea 2: Rolling correlation matrix to monitor strategy health**
-- Compute pairwise correlation between all strategy return streams over a rolling window.
-- Track how correlations change over time. If two strategies that were uncorrelated (rho=0.1)
-  start correlating (rho>0.5), that's a warning: diversification is breaking down.
-- This feeds into the risk parity weighting automatically — if two strategies become correlated,
-  their combined risk contribution increases, so risk parity reduces both their weights.
-
-**The target correlation matrix (what "good" looks like for 4 strategies):**
+**Full 4x4 correlation matrix (115 months of real data):**
 ```
-              Equity   Commodity  Dividend   Strat4
-Equity        1.00     ~0.10      ~0.30      ~0.10
-Commodity     0.10     1.00       ~0.10      ~0.10
-Dividend      0.30     0.10       1.00       ~0.20
-Strat4        0.10     0.10       0.20       1.00
+              v2 Equity   Commodity   Dividend    Bond
+v2 Equity     1.000       +0.340      +0.451      +0.153
+Commodity     0.340       1.000       +0.308      +0.164
+Dividend      0.451       0.308       1.000       +0.292
+Bond          0.153       0.164       0.292       1.000
 ```
-- Off-diagonal all below 0.4 = diversification works.
-- At least one pair near zero or negative = crisis insurance.
-- No pair above 0.6 = not just a weaker copy of another strategy.
-- If any pair exceeds 0.6 → investigate, possibly kill the weaker strategy.
+No pair above 0.6. Two pairs below 0.2. Matrix is solid.
 
-**How we validate BEFORE building combined algo:**
-1. Run all strategies on identical time periods (2016-2020, 2020-2023, 2023-2025).
-2. For each pair, compute beta of strategy A regressed on strategy B's returns.
-3. Check worst-month behavior: during March 2020 and Sept-Oct 2022, did they move together or apart?
-4. Only build the combined risk-parity algorithm if the matrix looks good.
-5. This is cheaper than backtesting a full combined algo just to discover they're correlated.
+Crisis coverage proven:
+- COVID crash (2020-03): Bond was only positive strategy (+$602)
+- Rate hike bear (2022): Commodity was savior (+$34K while v2 lost -$7K)
+- Sector rotation (2022-01): Dividend went up while v2 dropped
 
-**What the research supports (alignment check March 2026):**
-- Garrone 2026: validates v2's cross-sectional ranking approach ✅
-- Maguire 2018: combine independent strategies > improve one ✅ (we're doing exactly this)
-- Man Group (ssrn-3813202): trend-following works across all asset classes, all regimes ✅ (commodity + future bond strategy)
-- Lopez de Prado (ssrn-2708678): hierarchical allocation for multi-strategy ✅ (risk parity is a simpler variant)
-- Moon 2019: mean reversion fails with costs ✅ (we avoided mean reversion)
-- Overnight strategy papers (Kakushadze, Glasserman, Knuteson): premium is real but NOT tradeable with our cost structure ✅ (tested and killed)
+**Stage 4: Combined 4-Strategy Algorithm** ✅ BUILT AND TESTED (v1→v5)
 
-**The Sharpe math with uncorrelation:**
-- 1 strategy (v2): Sharpe ~0.85
-- 2 uncorrelated (v2 + commodity): Sharpe ~1.30
-- 3 uncorrelated: Sharpe ~1.5-1.7
-- 4 uncorrelated: Sharpe ~1.8-2.0
+Five iterations of the combined algorithm:
+| Version | Innovation | 2020-2023 Sharpe | 2020-2023 DD | Problem |
+|---------|-----------|-----------------|-------------|---------|
+| v1 | Raw risk parity | 0.38 | 18.4% | SPY gate killed all sleeves, noisy |
+| v2 | Per-sleeve gates + TLT fix | 0.36 | 21.5% | More emergencies, flip-flopping |
+| v3 | Symmetric smoothing (15%/mo) | 0.45 | 18.9% | Still noisy underlying solver |
+| **v4** | **AI decision tree** | **0.72** | **17.4%** | **Best numbers but static thresholds** |
+| v5 | Relative ranking + asymmetric smooth | 0.57 | 17.9% | Smoothest weights, live-ready |
 
-**Key lessons from multi-strategy research:**
-1. A mediocre strategy (Sharpe 0.4) is VALUABLE if it's uncorrelated — it improves combined Sharpe by 60%
-2. Don't judge strategies in isolation — judge them by their contribution to the portfolio
-3. PSR matters more than CAR — a strategy with modest returns and high PSR is better than a home run with low PSR
-4. v2's edge may be decaying (PSR trend: 80%→18%). Multi-strategy is insurance against single-strategy decay
-5. Separate estimation frequency (daily) from rebalance frequency (monthly) to get accurate risk estimates without fee drag
-6. Beta to SPY is a useful proxy for correlation but NOT the same as pairwise correlation between strategies — always compute both
-7. Check worst-month behavior specifically — normal-times correlation can hide crisis-times correlation
+**v4 is the backtest winner. v5 is the live deployment winner** (never goes stale).
+
+Key fixes discovered through iteration:
+1. Per-sleeve trend gates (SPY→equity, DBC→commodity, DVY→dividend, AGG→bond)
+2. TLT belongs in bond sleeve only, not commodity
+3. Fallback = keep previous weights, not reset to 25%
+4. Asymmetric smoothing: slope UP fast (+20%), slope DOWN slow (-8%)
+5. Relative ranking never needs retraining
+
+**The honest verdict on combined vs v2 standalone:**
+| | v2 standalone | Best combined (v4) |
+|---|---|---|
+| 2016-2020 CAR | **43.4%** | 18.4% |
+| 2020-2023 CAR | **22.9%** | 13.6% |
+| 2016-2020 MaxDD | 35.8% | **24.4%** |
+| 2020-2023 MaxDD | 32.4% | **17.4%** |
+| 2020-2023 Sharpe | 0.75 | **0.72** (nearly equal!) |
+| 2020-2023 PSR | 29.5% | **36.8%** |
+
+Combined cuts drawdown in half but also cuts returns in half.
+The Sharpe ratio is nearly identical — same risk-adjusted return, different ride.
+
+**Deployment plan:**
+```
+Now → $15K:     v2 standalone (maximize growth, need capital accumulation)
+                $1K start + $500/month deposits
+                Estimated timeline: ~19-23 months (Oct 2027 - Feb 2028)
+$15K+:          Switch to v4 or v5 (protect capital, similar risk-adjusted returns)
+                v4 if willing to retrain every 6 months
+                v5 if want zero-maintenance live deployment
+$50K+:          Combined is clearly better (35% DD on $50K = -$17.5K is devastating)
+```
+
+v2 is OK for now. The multi-strategy work is not wasted — it's the graduation strategy
+waiting in the repo for when capital justifies the switch.
+
+All strategy code and backtest results preserved:
+- `strategies/commodity_momentum/main_v1.py`
+- `strategies/dividend_yield/main_v1.py`
+- `strategies/bond_momentum/main_v1.py`
+- `strategies/combined_v2_commodity/main_v1.py`
+- `strategies/combined_4strat_riskparity/main_v1.py` through `main_v5.py`
+- `notebooks/05_weight_learning/train_weights.py`
+- All results in `results_from_quant_connect/` with matching periods
 
 ### v8 is the upgrade path (when ready)
 - v8 (fundamentals on static universe) is the best alternative to v2
