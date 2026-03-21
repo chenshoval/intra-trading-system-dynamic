@@ -372,6 +372,129 @@ All strategy code and backtest results preserved:
 - `notebooks/05_weight_learning/train_weights.py`
 - All results in `results_from_quant_connect/` with matching periods
 
+### Next Phase: ML-Enhanced Strategies (Jansen Book Directions)
+
+Reference: Stefan Jansen "Machine Learning for Algorithmic Trading" 2nd ed.
+GitHub repo: https://github.com/stefan-jansen/machine-learning-for-trading
+(150+ notebooks, all code open source)
+
+#### TIER 1: Improve v2's Stock Scoring (highest impact, do first)
+
+**Step 1.1: WorldQuant 101 Formulaic Alphas — expand our feature set**
+- Source: `24_alpha_factor_library/03_101_formulaic_alphas.ipynb`
+- What: 101 production-tested alpha factors from WorldQuant, implemented in Python
+- Why: We use 5 signals. There are 96 more we haven't tried. These are cross-sectional
+  rankings of price/volume features — same type we already use, just more.
+- Action:
+  1. Clone the notebook, adapt to our 50-stock universe
+  2. Compute all 101 alphas on our stocks using QC historical data
+  3. Test which factors predict 1-month forward returns (using Alphalens — see 1.2)
+  4. Pick top 5-10 new factors that have predictive power AND low correlation to existing 5
+  5. Add them to v2's feature set
+- Expected impact: More features = better stock selection = higher CAR
+- Risk: Overfitting if we cherry-pick factors. Mitigate with walk-forward validation.
+
+**Step 1.2: Alphalens Factor Evaluation — test our signals properly**
+- Source: `04_alpha_factor_research/06_performance_eval_alphalens.ipynb`
+- What: Rigorous statistical testing of whether a factor predicts returns
+- Why: We've been evaluating signals by "did the backtest Sharpe improve?" — that's noisy
+  and subject to overfitting. Alphalens computes Information Coefficient (IC), factor-weighted
+  returns by quantile, factor turnover — much more rigorous.
+- Action:
+  1. Run our existing 5 signals through Alphalens on our 50-stock universe
+  2. Compute IC, IC stability, quantile returns for each signal
+  3. We might discover: some signals are garbage, others deserve MORE weight
+  4. Also test new WorldQuant alphas from Step 1.1
+- Expected impact: Kill weak signals, boost strong ones. Even redistributing existing weights
+  based on IC could improve v2 by 5-10%.
+- Risk: Low — this is analysis, not trading changes.
+
+**Step 1.3: Replace fixed weights with LightGBM — the big upgrade**
+- Source: `12_gradient_boosting_machines/05_trading_signals_with_lightgbm_and_catboost.ipynb`
+- What: Full pipeline — alpha factors → LightGBM → predict returns → rank stocks → backtest
+- Why: v2 uses fixed weights (0.35/0.25/0.20/0.10/0.10) that were hand-tuned.
+  LightGBM LEARNS the optimal combination from data, handles nonlinear interactions,
+  and adapts. This is Hypothesis 2 from CLAUDE.md.
+- Action:
+  1. Build feature matrix: our 5 signals + top WorldQuant alphas (from 1.1) for all 50 stocks
+  2. Target: 1-month forward return (or binary UP/DOWN classification)
+  3. Walk-forward validation: train pre-2020, validate 2020-2022, test 2023+
+  4. Use model predictions as v2's composite score instead of weighted sum
+  5. Deploy on QC — can use sklearn in QC's Python environment
+- Expected impact: This is the single highest-impact change. The dual-stream paper showed
+  threshold trading on LightGBM predictions returned 40% (vs our v2's 43% with hand-tuned
+  weights on bull market data). With proper features and walk-forward, could beat v2.
+- Risk: Overfitting. Mitigate with strict walk-forward, deflated Sharpe (see 2.3).
+- Note: LightGBM predictions also apply to commodity/dividend/bond sleeves — same pipeline,
+  different universe. This could improve v4/v5 combined strategy too.
+
+**Practical workflow for Tier 1:**
+```
+Session 1: Clone 101 alphas notebook, compute on our universe, identify top candidates
+Session 2: Run Alphalens on existing 5 + new candidates, rank by IC
+Session 3: Build LightGBM pipeline with expanded features, walk-forward backtest
+Session 4: Deploy enhanced v2 on QC, compare to original v2
+```
+
+#### TIER 2: Improve Multi-Strategy Combination (do after Tier 1)
+
+**Step 2.1: HRP (Hierarchical Risk Parity) — replace our risk parity solver**
+- Source: `13_unsupervised_learning/04_hierarchical_risk_parity/`
+- What: Lopez de Prado's HRP — uses hierarchical clustering of correlation matrix
+- Why: Our risk parity solver (v1-v3) flip-flopped because covariance estimation is noisy.
+  HRP is more stable because it clusters correlated strategies together and allocates
+  between clusters first, then within clusters. Less sensitive to estimation error.
+- Action: Replace `_compute_risk_parity_weights()` in v4/v5 with HRP implementation
+- Expected impact: Smoother weight transitions, potentially better than v5's relative ranking
+
+**Step 2.2: Cointegration and Pairs Trading — potential 5th strategy**
+- Source: `09_time_series_models/` (cointegration section)
+- What: Find cointegrated pairs in our 50-stock universe, trade the spread
+- Why: Market-neutral (zero beta), uncorrelated to all 4 existing strategies
+- Action: Run cointegration tests on our 50 stocks, identify stable pairs, backtest
+- Risk: Moon 2019 warns about costs. Only pursue if spreads are wide enough.
+- Note: This was parked earlier but the Jansen repo has a ready-made implementation.
+
+**Step 2.3: Deflated Sharpe Ratio — validate our results**
+- Source: `08_ml4t_workflow/01_multiple_testing/deflated_sharpe_ratio.py`
+- What: Adjusts Sharpe ratio for the number of strategy variants we tested
+- Why: We tested 20+ variants (v1-v14, overnight, commodity, dividend, bond, v1-v5 combined).
+  Our v2 Sharpe of 1.45 might deflate to ~0.8 when accounting for all that testing.
+  Important to know if the edge is real.
+- Action: Run the deflated Sharpe calculation with N=20+ trials on v2's results
+- Expected impact: Reality check. Doesn't change the strategy, changes our confidence in it.
+
+#### TIER 3: Competition-Inspired & Future (do when Tiers 1-2 are done)
+
+**Step 3.1: Kaggle / Numerai style stacking**
+- Top competition approaches: (a) stack multiple models, (b) extensive feature engineering,
+  (c) walk-forward validation. We do (c) but not (a) or (b).
+- Action: Train 3 different models (LightGBM, RandomForest, Ridge regression) on same features,
+  average their predictions. Stacking typically adds 5-10% accuracy over single model.
+- When: After LightGBM v2 is working (Tier 1 complete)
+
+**Step 3.2: Intraday LightGBM (different from overnight strategy)**
+- Source: `12_gradient_boosting_machines/10_intraday_features.ipynb`
+- What: Minute-bar features → LightGBM → intraday signals
+- Why: Different from our killed overnight strategy — this uses ML on minute data, not OHLCV
+- When: Only if we have intraday data access (QC Researcher tier $10/mo for tick data)
+
+**Step 3.3: NLP sentiment upgrade**
+- Source: `14_working_with_text_data/` and `16_word_embeddings/`
+- What: Replace keyword matching with FinBERT or word embeddings for event scoring
+- Why: v2's event signal is only 10% weight. Even doubling quality adds ~2% to overall.
+  Low ROI vs effort unless we find events have much more predictive power than we think
+  (Alphalens evaluation in 1.2 will tell us).
+- When: Only if Alphalens shows event signal has high IC but our keyword matching is losing it
+
+#### What NOT to pursue from this book
+- Deep learning (Ch 17-22): CNNs, RNNs, GANs, RL — our edge is simplicity. We already
+  killed RL-adjacent approaches. DL adds complexity without proven improvement for monthly
+  equity rotation at our scale.
+- Complex NLP (Ch 15-16): Topic modeling, word embeddings for SEC filings — fascinating but
+  the implementation cost is high and the signal improvement over keyword matching is marginal
+  for our monthly rebalance frequency.
+
 ### v8 is the upgrade path (when ready)
 - v8 (fundamentals on static universe) is the best alternative to v2
 - Lower drawdown in ALL periods, better bear market performance
