@@ -1,13 +1,12 @@
 # Intraday Trading System — Project Progress
 
-## Current Status: Monthly Rotator v2 LIVE on IBKR (March 2026)
+## Current Status: Accumulating SPY, Waiting for $5K (April 2026)
 
 ### What's Deployed
-- **Strategy:** `strategies/monthly_rotator/main_v2.py` (MonthlyRotatorV2)
-- **Platform:** QuantConnect → IBKR paper/live, $500 capital, fractional shares
-- **First rebalance:** March 3, 2026 (first trading day)
-- **Status:** Paper test March 3 → verify clean → switch to live immediately
-- **DO NOT TWEAK** for 6 months (until Sept 2026)
+- **Strategy:** NONE — QC algo stopped, holding manually in IBKR
+- **Holdings:** 1 share XYZ (~$60) + 1 share SPY (~$525) = ~$585 invested, ~$424 cash
+- **Plan:** Keep buying SPY + adding cash until $5K, then deploy MonthlyRotator v2
+- **Previous deployment:** MonthlyRotatorV2 on QC (March 29, 2026) — FAILED due to insufficient capital (see below)
 
 ### What Monthly Rotator v2 Does
 - Monthly rebalance on first trading day
@@ -33,29 +32,24 @@
 
 ## Live Deployment Scaling Ladder
 
-| Capital | Strategy | File | Stocks | Downtrend | Notes |
-|:-------:|----------|------|:------:|:---------:|-------|
-| **$500-$2K** | v10 Small | `main_v10_small.py` | Top 15 (buy affordable) | 5 | Cheap stocks added, skip-and-log |
-| **$2K-$20K** | v11 Medium | `main_v11_medium.py` | Top 10 | 5 | Original 50 universe, most stocks affordable |
-| **$20K-$100K** | v2 Full | `main_v2.py` | Top 15 | 5 | Full diversification, all stocks affordable |
-| **$100K+** | v2 Full | `main_v2.py` | Top 15 | 5 | Same as above, more shares per position |
+| Capital | Strategy | File | Notes |
+|:-------:|----------|------|-------|
+| **<$5K** | **Hold SPY manually** | N/A | Fees + concentration risk kill any edge. Don't run algos. |
+| **$5K** | v2 Full | `main_v2.py` | Top 15, it sells SPY and redistributes. Deploy on QC. |
+| **$10K** | v2 Full | `main_v2.py` | All 15 positions properly sized |
+| **$20K+** | Evaluate: v2 or v5 | `main_v2.py` or `combined_4strat_riskparity/main_v5.py` | v2 if bull, v5 if want bear protection |
+| **$25K+** | Combined 4-strat v5 | `combined_4strat_riskparity/main_v5.py` | 27 positions across 4 asset classes |
+| **$50K+** | v5 at full strength | `combined_4strat_riskparity/main_v5.py` | Proper diversification everywhere |
+| **$50K+** | + FX Momentum (2nd stream) | `forex_momentum_carry/main.py` | 27 FX pairs, completely uncorrelated to equities |
 
-**How to scale up:**
-1. Start with v10 at $500
-2. When account hits $2K → stop v10, deploy v11 medium
-3. When account hits $20K → stop v11, deploy v2 full
-4. All use same scoring engine, same signals, same trend gate
-5. Only difference is how many stocks are held and position sizing
+### Why the Old Scaling Ladder Was Wrong
+The previous plan (v10 at $500 → v11 at $2K → v2 at $20K) was tested and failed:
+- **v10 small ($500)**: -7% CAGR in 2022-2023, 34% max drawdown, QC says capacity = $0
+- **v10b equal-weight ($500)**: -15.9% net, 38.5% max DD
+- **Fees at $500**: $321 in fees = 64% of starting capital eaten
+- **Conclusion**: Sub-$5K active trading doesn't work. Hold SPY and accumulate.
 
-**At $100K+ consider:**
-- Adding VIX-based hedge or defensive sector rotation for geopolitical risk
-- The SPY trend gate (MA 10/50) catches sustained declines (worked in 2020 COVID, 2022 bear)
-- But doesn't protect against overnight gap-down shocks (e.g., sudden military escalation)
-- Man Group paper: trend-following protects in every crisis over 95 years because crises develop over weeks
-- At larger capital, adding a SPY put hedge or sector rotation into defense stocks (LMT, RTX, XOM) during elevated geopolitical risk could reduce max drawdown
-- This is a $100K+ problem — at $500-$20K, the trend gate is sufficient
-
-**Current deployment:** v10 on IBKR with $515 (March 2026)
+**Current deployment:** Holding SPY+XYZ manually in IBKR (~$1K total, April 2026)
 
 ## How the 50-Stock Universe Was Picked
 
@@ -149,6 +143,7 @@ All are large/mega-cap with high liquidity and analyst coverage.
 | Strategy | Type | Result | Verdict |
 |----------|------|--------|---------|
 | Forex Zone Bounce | EUR/USD support/resistance mean-reversion | 7% in 4 years, Sharpe -0.93 | KILLED — too few trades, too many filters |
+| Forex Multi-Pair Momentum | 27 FX pairs, per-pair momentum signals | **NEEDS BACKTESTING** | Built April 2026, awaiting QC backtest |
 
 ---
 
@@ -236,26 +231,32 @@ Each strategy folder contains: `.json` (full stats), `_orders.csv`, `_trades.csv
 
 **Key conclusion:** v2 at $100K remains the best overall. Small account variants (v10/v10b/v10small at $500) have 40-47% max drawdowns due to position concentration. Plan: accumulate $500/month in IBKR, run v2 from day 1 (it skips stocks it can't afford), and it naturally scales into full operation by ~$10-15K.
 
-### Decision: Stick with v2, Accumulate to $100K
-- v2 is deployed on IBKR with $500 (March 2026)
-- Add $500/month manually
-- v2 buys what it can afford (skips expensive stocks via `int(target_alloc/price) < 1 → continue`)
-- By ~$10-15K all 15 positions are buyable
-- v10/v11 scaling ladder exists but v2 handles low capital fine with its skip logic
-- v12 (chart-enhanced) built but NOT yet backtested — will compare vs v2 when ready
-- v12b (self-optimizing walk-forward weights) planned as next step after v12 baseline
+### Decision: Accumulate SPY, Deploy v2 at $5K
+- Previous plan (v2 with skip logic at $500) FAILED — only bought 1 share of XYZ
+- New plan: hold SPY manually in IBKR, no QC node cost, add cash + buy SPY
+- At $5K: deploy v2 (it sells SPY/XYZ, redistributes across top 15 stocks)
+- At $20K+: evaluate switching to combined 4-strat v5 for bear market protection
+- v2 historically outperforms 4-strat in bull markets; 4-strat's edge is surviving downturns
 
-### Monthly Deposit Projection (v2 at ~15% CAGR conservative estimate)
+### Capital Accumulation Projection (SPY holding + deposits)
 ```
-Month 0:   $500
-Month 6:   ~$3,800   (v2 buys ~8 stocks)
-Month 12:  ~$7,500   (v2 buys ~12 stocks)
-Month 24:  ~$16,000  (v2 fully operational, all 15 positions)
-Month 36:  ~$27,000
-Month 48:  ~$42,000
-Month 60:  ~$60,000
+April 2026:  ~$1,009 (1 XYZ + 1 SPY + cash)
+             Accumulating SPY + adding cash
+             Deploy v2 when total reaches ~$5K
 ```
-Note: Deposit math done via spreadsheet, NOT in backtest. Backtesting with deposits corrupts Sharpe/return metrics (deposits inflate equity curve). Test strategy quality with fixed capital, project growth with spreadsheet.
+Note: Not projecting returns on SPY holds — just accumulate and deploy v2 when ready.
+
+### IBKR MFA / Weekly Restart Fix (March 2026)
+- **Problem**: Got 3 MFA pushes at 1:00 AM Israel time on Monday — thought it was a breach
+- **Cause**: QC Weekly Restart UTC was 22:00 = 1:00 AM Israel time. LEAN reconnects to IBKR → MFA
+- **Fix**: Changed to 11:00 UTC (2:00 PM Israel time) — awake to approve, before US market open
+
+### Live Deployment Failure Post-Mortem (March 29, 2026)
+- Deployed MonthlyRotatorV2 to IBKR live with ~$1,009 capital
+- Algo only bought **1 share of XYZ @ $60.46** — that's it (1 order, page 1 of 1)
+- Root cause: `int($67 / $900) = 0` → skipped all stocks over $67/share
+- XYZ was the only stock in the ranked top 15 cheap enough to buy 1 share
+- **Lesson**: Position sizing is where risk lives (Tom Bassos). $1K is not enough for 15-stock rotation.
 
 ## Roadmap
 
@@ -349,12 +350,15 @@ Key fixes discovered through iteration:
 Combined cuts drawdown in half but also cuts returns in half.
 The Sharpe ratio is nearly identical — same risk-adjusted return, different ride.
 
-**Deployment plan:**
+**Deployment plan (UPDATED April 2026):**
 ```
-Now → $15K:     v2 standalone (maximize growth, need capital accumulation)
-                $1K start + $500/month deposits
-                Estimated timeline: ~19-23 months (Oct 2027 - Feb 2028)
-$15K+:          Switch to v4 or v5 (protect capital, similar risk-adjusted returns)
+Now → $5K:      Hold SPY manually in IBKR, no QC algo running
+                Accumulate SPY shares + cash deposits
+                Save ~$20/mo by not running QC node
+$5K:            Deploy v2 standalone (it sells SPY, buys top 15 stocks)
+$5K → $20K:     v2 standalone (maximize growth, need capital accumulation)
+$20K+:          Evaluate: v2 still winning? Stay. Want protection? Switch to v5.
+$25K+:          Switch to v4 or v5 (protect capital, similar risk-adjusted returns)
                 v4 if willing to retrain every 6 months
                 v5 if want zero-maintenance live deployment
 $50K+:          Combined is clearly better (35% DD on $50K = -$17.5K is devastating)
@@ -529,6 +533,50 @@ Session 4: Deploy enhanced v2 on QC, compare to original v2
 - **Lesson**: The combined multi-strategy approach (v2 + commodity at 75/25) achieves the same goal (bear protection) more reliably than regime switching.
 - **Strategy file**: `strategies/monthly_rotator/main_v13_regime.py`
 - **Status**: Deprioritized in favor of multi-strategy combination approach
+
+### Hypothesis 5: Multi-Pair FX Momentum (April 2026) — BUILT, NEEDS BACKTESTING
+
+**Inspiration**: Reddit trader (Kindly_Preference_54) showed 1 year of live trading across 27 forex pairs with Sharpe 3.64, Sortino 4.98, 72% win rate, 611 trades on Darwinex. Top 3 pairs: AUDUSD, GBPCHF, EURJPY. Key insight: diversification across many low-correlated FX pairs is the primary Sharpe multiplier.
+
+**Strategy**: Per-pair independent momentum signals (Variant B — not cross-sectional ranking).
+Each of 27 forex pairs scored independently on momentum (40%), trend (30%), trend strength (15%), vol regime (15%). Only trades when |score| > 0.6 (selective entry). Inverse-volatility position sizing per Barroso & Santa-Clara (2015). Daily rebalance.
+
+**Academic basis**:
+- Menkhoff et al. (2012) "Currency Momentum Strategies" — JFE (quintile sorts, Sharpe ~0.45)
+- Asness, Moskowitz & Pedersen (2013) "Value and Momentum Everywhere" — JF (tercile sorts, Sharpe ~0.6-0.8)
+- Barroso & Santa-Clara (2015) "Beyond the Carry Trade" — risk-managed momentum (inverse-vol sizing)
+- Daniel & Moskowitz (2016) "Momentum Crashes" — dynamic vol scaling to avoid crash risk
+- Fan, Oppenheimer & Yeung (2023) "Currency Momentum and Attention Allocation" — attention-based signals
+- Bianchi, Dickerson & Drew (2024) "Currency Premia and Global Imbalances" — recent carry trade analysis
+
+**File**: `strategies/forex_momentum_carry/main.py`
+**Class**: `ForexMomentumCarry`
+
+**Capital requirements (IBKR, min 25K units/pair)**:
+| Account | Active Pairs | Max Positions | Viable? |
+|---------|-------------|---------------|---------|
+| <$30K | 7 majors | 5 | Marginal — high leverage |
+| $50K | 15 (majors + top crosses) | 10 | **Minimum recommended** |
+| $100K | 27 (full universe) | 20 | **Target — full diversification** |
+| $200K+ | 27 | 20 | Ideal — can increase per-pair size |
+
+**Why this matters**: Completely uncorrelated with ALL our equity strategies. Different asset class, different signals, different drivers (central bank policy vs corporate earnings). Would be a true second independent income stream per the CLAUDE.md philosophy.
+
+**Status**: Code complete. **NEXT: Backtest on QC (free tier, 3 walk-forward periods).**
+- Period 1: 2016-2019 (development)
+- Period 2: 2020-2022 (out-of-sample, includes COVID)
+- Period 3: 2023-2025 (rate hike cycle)
+
+**Updated deployment plan with forex:**
+```
+Now → $5K:      Hold SPY manually (no algo)
+$5K:            Deploy v2 (equities)
+$5K → $50K:     v2 standalone, then v5 combined at $25K+
+$50K+:          Add forex as 2nd uncorrelated stream alongside equity strategy
+$100K+:         Full forex (27 pairs) + full v5 (4-strat equity/commodity/dividend/bond)
+```
+
+**Note on Oanda alternative**: If we want forex on smaller accounts ($5-10K), can switch from IBKR to Oanda broker (supports micro-lots / 1-unit trades). Same strategy code, only `_compute_lot_size()` and brokerage model change.
 
 ### Other Future Ideas
 1. **Global TabNet directional classifier**: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (momentum, volatility, cross-stock, macro — NOT trade metadata like v5 used). Walk-forward validation mandatory. Could run as second uncorrelated strategy alongside momentum rotator.

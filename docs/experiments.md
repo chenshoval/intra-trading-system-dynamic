@@ -292,3 +292,149 @@ The thesis used TabNet (deep learning) with 122 features, stock identity embeddi
 - Impact analysis: Confidence >= 50% → win rate 51%→65%, net P&L 3x improvement
 - Model at: models/trade_classifier/model.pkl (local only)
 - Training script: training/train_trade_classifier.py
+
+---
+
+## Session: March-April 2026 — Live Deployment & Capital Reality Check
+
+### MonthlyRotatorV2 Live Deployment (March 29, 2026)
+
+**Deployed**: MonthlyRotatorV2 (main_v4.py from combined_4strat_riskparity) to IBKR live
+- Account: U12654641, L-MICRO node 7ac5a37f
+- Capital: ~$1,009
+- LEAN Engine: master v17649
+
+**Problem discovered**: Algo only bought **1 share of XYZ @ $60.46**. That's it — 1 order, 1 stock, page 1 of 1.
+
+**Root cause**: $1,009 capital with 15-stock allocation = $67 per position. Most stocks in the 50-stock universe are $100-$1,600+. The code does `int($67 / price)` which equals 0 for anything over $67 → skipped. XYZ ($60.46) was the only affordable stock.
+
+```python
+target_alloc = total_value / n_hold        # $1,009 / 15 = $67 per stock
+target_qty = int(target_alloc / price)     # int($67 / $900) = 0 → SKIPPED
+if target_qty < 1:
+    continue                               # ← skips most stocks!
+```
+
+### Small Account Strategy Tests — All Bad
+
+Tested v10 (small account, top 5 stocks) with $500 starting capital:
+
+| Period | Return | CAGR | Sharpe | Max DD | Win Rate | Verdict |
+|---|---|---|---|---|---|---|
+| 2016-2020 | 261% | 29.2% | 0.85 | -44.9% | 45% | High return but insane drawdown |
+| 2018-2021 | 101% | 19.0% | 0.61 | -37.0% | 40% | Still bad drawdown |
+| 2020-2024 | 34% | 6.0% | 0.18 | -40.9% | 37% | Barely beats savings account |
+| **2022-2023** | **-14%** | **-7.0%** | **-0.46** | **-34.0%** | **28%** | **Lost money** |
+
+**Why small account strategies fail:**
+- QC says **Estimated Strategy Capacity: $0** — literally zero
+- Fees eat everything: $321 in fees on $500 capital (64%!) in 2020-2024
+- 5 stocks = massive concentration risk, one bad pick tanks the portfolio
+- Win rate collapses to 28% in bear markets
+- 35-45% drawdowns on $500 = losing $175-225
+
+**Conclusion: DO NOT run active strategies under $5K. The math doesn't work.**
+
+### Combined 4-Strat v5 at $1K — Even Worse
+
+The 4-strat risk parity (equity + commodity + dividend + bond) splits capital 4 ways:
+- $250 per sleeve → equity sleeve gets $17/stock across 15 stocks = nothing bought
+- ETF sleeves might get 1-2 positions each
+- Need **$25K minimum** for 4-strat to work properly
+
+### Capital Scaling Guide
+
+| Capital | Best Strategy | Why |
+|---|---|---|
+| <$5K | **Hold SPY manually** | Fees + concentration risk kill any edge |
+| $5K | MonthlyRotator v2 (15 stocks) | Enough for ~$333/position, most stocks affordable |
+| $10K | MonthlyRotator v2 (full) | All 15 positions properly sized |
+| $25K+ | Combined 4-strat v5 (asymmetric) | 27 positions across 4 asset classes |
+| $50K+ | 4-strat v5 at full strength | Proper diversification everywhere |
+
+### Current Plan (as of April 2026)
+
+1. **Stopped active QC algo** — not worth running at $1K
+2. **Holding manually in IBKR**:
+   - 1 share XYZ (~$60) — left over from failed v2 deployment
+   - 1 share SPY (~$525) — bought manually April 10, 2026
+3. **Accumulating SPY** + adding cash deposits until ~$5K
+4. **At $5K**: Deploy MonthlyRotator v2 — it will sell SPY/XYZ and redistribute across top 15
+5. **At $20K+**: Evaluate — v2 still outperforming? Stay. Want bear market protection? Switch to 4-strat v5
+6. v2 historically outperforms 4-strat in bull markets; 4-strat's edge is surviving downturns
+
+### IBKR MFA / Weekly Restart Fix
+
+**Problem**: Got 3 MFA pushes at 1:00 AM Israel time on Monday — scary, thought it was a breach.
+**Cause**: QC Weekly Restart UTC was set to 22:00 UTC = 1:00 AM Israel time (IDT, UTC+3). LEAN reconnects to IBKR on restart → triggers MFA.
+**Fix**: Changed Weekly Restart UTC to **11:00 UTC** (2:00 PM Israel time) — awake to approve MFA, well before US market open.
+
+### Available Strategy Versions (for reference)
+
+| File | Purpose | Min Capital |
+|---|---|---|
+| `monthly_rotator/main_v2.py` | Core v2 scoring, 15 stocks | $5K |
+| `monthly_rotator/main_v2_live_scale_by_account_size.py` | Buys what it can afford, logs skips | $500 (but bad) |
+| `monthly_rotator/main_v10_small.py` | Top 5 stocks | $500 (bad — tested, fails) |
+| `monthly_rotator/main_v10b_equalweight.py` | Smart equal-weight, drops expensive stocks | $500 (bad — same issues) |
+| `combined_4strat_riskparity/main_v5.py` | 4-sleeve asymmetric smoothing | $25K |
+| `combined_4strat_riskparity/main_v4.py` | 4-sleeve AI-learned weights | $25K |
+
+### Key Lesson
+**Position sizing is where risk lives** (Tom Bassos). At $1K, no amount of clever signal generation matters — the position sizes are too small for fees, and concentration risk dominates. Build capital first, trade later.
+
+---
+
+## Session: April 10, 2026 — Hypothesis 5: Multi-Pair FX Momentum
+
+### Inspiration
+Reddit post by Kindly_Preference_54 showing 1 full year of live trading results on Darwinex:
+- **27 forex pairs**, Sharpe 3.64, Sortino 4.98, 72.18% win rate, 611 trades
+- Position size: 0.01-0.03 lots (1K-3K units) — negligible market impact
+- Top 3 contributing pairs: AUDUSD, GBPCHF, EURJPY
+- Key insight from commenter polymanAI: "3.64 Sharpe over a full year of live trading is genuinely elite. The bigger question is whether the Sharpe holds at 5x or 10x your current size."
+
+### Analysis
+The high Sharpe is primarily driven by **diversification across 27 low-correlated pairs**, not extraordinary per-pair alpha. Math: if each pair has Sharpe ~0.5-0.7 and avg correlation ~0.2, portfolio Sharpe ≈ 0.7 × sqrt(27 × (1 - 0.2)) ≈ 3.2. This is a well-documented effect.
+
+### Approach Decision
+Evaluated 3 variants:
+- **Variant A: Cross-sectional ranking** (academic — rank all pairs, long top third, short bottom third)
+- **Variant B: Per-pair independent signals** (practitioner — each pair trades own signals) ← **CHOSEN**
+- **Variant C: Combined** (per-pair signals + cross-sectional filter)
+
+Chose Variant B because:
+1. More selective — only trades when signal is strong (produces higher win rate)
+2. Matches the Reddit poster's profile (varying position count, not always-in)
+3. Barroso & Santa-Clara (2015) supports risk-managed individual positions over naive portfolio sorts
+
+### Strategy Design
+- **Universe**: 27 forex pairs (7 majors + 20 crosses) via Oanda data, IBKR brokerage
+- **Signals per pair**: Momentum 40%, Trend alignment 30%, Trend strength 15%, Vol regime 15%
+- **Entry**: |composite score| > 0.6 → trade; between -0.6 and +0.6 → flat (selective)
+- **Sizing**: Inverse-volatility (risk_per_pair / ATR_14), IBKR min 25K units
+- **Rebalance**: Daily at 17:00 UTC (NY close / FX rollover)
+- **Risk**: 5% DD circuit breaker, 1.5% per-pair stop, vol scaling (2x avg → halve)
+- **Adaptive universe**: <$30K → 7 majors, $30-75K → 15 pairs, $75K+ → full 27
+
+### Academic References
+1. Menkhoff et al. (2012) "Currency Momentum Strategies" — JFE
+2. Asness, Moskowitz & Pedersen (2013) "Value and Momentum Everywhere" — JF
+3. Burnside, Eichenbaum & Rebelo (2011) "Carry Trades and Risk" — RFS
+4. Barroso & Santa-Clara (2015) "Beyond the Carry Trade" — risk-managed momentum
+5. Daniel & Moskowitz (2016) "Momentum Crashes" — dynamic vol scaling
+6. Fan, Oppenheimer & Yeung (2023) "Currency Momentum and Attention Allocation"
+7. Bianchi, Dickerson & Drew (2024) "Currency Premia and Global Imbalances"
+
+### Files
+- `strategies/forex_momentum_carry/main.py` (class: `ForexMomentumCarry`)
+- Plan: `~/.claude/plans/mossy-wondering-locket.md`
+
+### Status: NEEDS BACKTESTING
+Next step: Upload to QC, run 3 walk-forward periods (2016-2019, 2020-2022, 2023-2025).
+Free tier is sufficient (daily resolution forex data via Oanda).
+
+### Capital Reality
+Can't run live at current $2K on IBKR (min 25K units/pair = need $50K+).
+This is a future deployment — backtest now, deploy at $50K+.
+Alternative: Oanda broker for micro-lots at $5-10K, but requires broker switch.
