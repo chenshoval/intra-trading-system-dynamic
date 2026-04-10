@@ -144,6 +144,7 @@ All are large/mega-cap with high liquidity and analyst coverage.
 |----------|------|--------|---------|
 | Forex Zone Bounce | EUR/USD support/resistance mean-reversion | 7% in 4 years, Sharpe -0.93 | KILLED — too few trades, too many filters |
 | Forex Multi-Pair Momentum | 27 FX pairs, per-pair momentum signals | -14.7% (2016-19), -6.3% (2020-22) | KILLED — 28% WR, momentum doesn't work in FX at daily frequency |
+| Forex Zone Bounce Multi | 27 FX pairs, S/R zone mean-reversion | -46.4% (2016-20) after 7 bug-fix iterations | KILLED — no edge after costs. Infrastructure now solid for future FX. |
 
 ---
 
@@ -565,6 +566,31 @@ Pure momentum on daily FX at IBKR lot sizes doesn't work.
 - Add carry trade signal (interest rate differential — we had this as a "proxy" but never implemented real swap rates)
 
 **File**: `strategies/forex_momentum_carry/main.py` — kept for reference, DO NOT DEPLOY.
+
+### Hypothesis 5b: Zone Bounce Multi-Pair (April 2026) — KILLED
+
+Expanded single-pair zone bounce to 27 pairs. 7 iterations to fix IBKR forex infrastructure
+(JPY sizing, orphan positions, DD halt loop, MOO errors). Final clean run: **-46.4% over 2016-2020**.
+Strategy has no edge after transaction costs — mean-reversion fails per Moon et al. (2019).
+
+**Key outcome**: FX infrastructure is now robust and reusable. All IBKR forex bugs documented.
+**File**: `strategies/forex_zone_bounce_multi/main.py` — kept for infrastructure, DO NOT DEPLOY.
+
+### Hypothesis 5c: FX Pairs Trading (Planned)
+
+**Concept**: Instead of predicting "will EURUSD go up?" (momentum) or "will it bounce at support?" (zone bounce),
+predict "will the EURUSD-GBPUSD spread narrow?" — mean-reversion on a STATIONARY spread, not a non-stationary price.
+
+**Why this is different from what failed**:
+- Momentum failed because FX prices don't trend at daily frequency
+- Zone bounce failed because mean-reversion on absolute prices costs too much in fees
+- Pairs trading works on the SPREAD between correlated pairs, which IS stationary
+- 27 pairs = 351 possible pair combinations for cointegration testing
+- Natural groups: USD pairs (EURUSD/GBPUSD), commodity currencies (AUD/NZD), JPY crosses
+
+**Academic basis**: Korniejczuk 2024 (graph clustering pairs, Warsaw group), Milstein 2022 (neural Kalman)
+**Infrastructure**: Reuse all IBKR forex plumbing from zone bounce (bugs already fixed)
+**Status**: Planning phase
 
 ### Other Future Ideas
 1. **Global TabNet directional classifier**: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (momentum, volatility, cross-stock, macro — NOT trade metadata like v5 used). Walk-forward validation mandatory. Could run as second uncorrelated strategy alongside momentum rotator.

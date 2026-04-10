@@ -451,3 +451,30 @@ Chose Variant B because:
 - BrokerageName uses SCREAMING_SNAKE_CASE: `BrokerageName.INTERACTIVE_BROKERS_BROKERAGE`
 - IBKR min lot varies by currency: NZD=35K, GBP/EUR=20K, JPY=2.5M, others=25K
 - P&L tracking: read `unrealized_profit` BEFORE `liquidate()`, or use entry price fallback
+
+### Hypothesis 5b: Zone Bounce Multi-Pair (April 2026) — KILLED
+
+**Strategy**: Expand single-pair zone bounce (EURUSD) to 27 forex pairs. Buy at demand zones, sell at supply zones on rejection candles. 4H zone detection, 1H entries, ATR-based stops.
+
+**7 iterations to fix infrastructure:**
+| Run | Return | Issue Fixed |
+|-----|--------|-------------|
+| v1 | -78.5% | JPY sizing catastrophic (no quote currency conversion) |
+| v2 | -85.4% | Position accumulation (close failures → orphans → margin call) |
+| v3 | -83.5% | DD halt infinite loop (peak not reset on resume) |
+| v4 | -16.3% | Orphan cleanup infinite retry (hourly loop on same failed close) |
+| v5 | -46.4% | **Clean run — infrastructure finally works, strategy has no edge** |
+
+**Why it failed**: Zone bounce mean-reversion produces ~45% WR with 1:2 R:R, which nets negative after IBKR fees. Moon et al. (2019) warned: "mean reversion strategies fail with realistic transaction costs." We confirmed this empirically.
+
+**Infrastructure lessons (VALUABLE for future FX strategies):**
+- IBKR MOO errors at hours 17/22/23/0 UTC → skip order submissions at those hours
+- Orphan positions from failed closes → daily cleanup with safe-hour check, max 1 attempt/pair/day
+- JPY quote conversion: `pnl_per_unit = stop_distance × (1/USDJPY)`
+- Per-currency IBKR minimums: NZD=35K, GBP/EUR=20K, JPY=2.5M, CHF/AUD/CAD/USD=25K
+- DD halt MUST reset `peak_equity = current_equity` on resume (otherwise infinite halt loop)
+- Use `market_order(-qty)` + `liquidate()` fallback for position closes
+- Check `self.portfolio[symbol].invested` before entering ANY new trade (prevents accumulation)
+- 100K unit hard cap per position prevents runaway sizing
+
+**File**: `strategies/forex_zone_bounce_multi/main.py` — kept for infrastructure reference, DO NOT DEPLOY.
