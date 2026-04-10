@@ -90,6 +90,12 @@ class ForexZoneBounceMulti(QCAlgorithm):
         self.max_positions = 8              # max simultaneous positions
         self.max_hold_bars = 30             # 30 × 1H = ~5 trading days, then exit
 
+        # Portfolio-level drawdown protection
+        self.max_dd_pct = 0.15              # 15% DD from peak → halt all new entries
+        self.dd_cooldown_days = 20          # wait 20 trading days before re-entering
+        self.consecutive_loss_halt = 5      # 5 losses in a row → pause 10 days
+        self.consecutive_loss_cooldown = 10 # days to cool down after streak
+
         # IBKR minimum lot sizes by base currency
         self.ibkr_min_by_currency = {
             "USD": 25_000, "EUR": 20_000, "GBP": 20_000,
@@ -110,6 +116,14 @@ class ForexZoneBounceMulti(QCAlgorithm):
 
         # Per-pair open positions
         self.open_positions = {}           # pair -> {direction, entry_price, stop, target, entry_time, bars_held}
+
+        # Portfolio drawdown tracking
+        self.peak_equity = 100_000
+        self.trading_halted = False
+        self.halt_until = None              # datetime when we can resume trading
+        self.consecutive_losses = 0
+        self.dd_halt_count = 0
+        self.streak_halt_count = 0
 
         # ══════════════════════════════════════════════════════════════
         # Tracking
@@ -311,22 +325,98 @@ class ForexZoneBounceMulti(QCAlgorithm):
         if self.is_warming_up:
             return
 
+        equity = self.portfolio.total_portfolio_value
+
         # Monthly tracking
         current_month = f"{self.time.year}-{self.time.month:02d}"
         if self.last_month is not None and current_month != self.last_month:
-            equity = self.portfolio.total_portfolio_value
             month_ret = (equity - self.month_start_equity) / self.month_start_equity
             self.monthly_returns.append(month_ret)
             self.monthly_pnl[self.last_month] = equity - self.month_start_equity
             self.month_start_equity = equity
         self.last_month = current_month
 
-        # ── Check existing positions ──
+        # ── Update peak equity and check drawdown ──
+        if equity > self.peak_equity:
+            self.peak_equity = equity
+
+        current_dd = (self.peak_equity - equity) / self.peak_equity if self.peak_equity > 0 else 0
+
+        # ── Clean up stale positions (close failed previously due to MOO error) ──
+        # If we think we closed a position but QC still shows it invested, force close it
+        # Only attempt once per pair per day to avoid infinite retry loops
+        if not hasattr(self, '_orphan_cleanup_dates'):
+            self._orphan_cleanup_dates = {}
+
+        today = self.time.date()
+        for pair in self.all_pairs:
+            symbol = self.symbols[pair]
+            if pair not in self.open_positions and self.portfolio[symbol].invested:
+                # Only try once per pair per day
+                last_attempt = self._orphan_cleanup_dates.get(pair)
+                if last_attempt == today:
+                    continue
+                self._orphan_cleanup_dates[pair] = today
+
+                # Only attempt during safe hours (not market open/close)
+                hour = self.time.hour
+                if hour in (22, 23, 0, 17):
+                    continue
+
+                qty = self.portfolio[symbol].quantity
+                self.market_order(symbol, -qty)
+                self.debug(f"ORPHAN CLEANUP: {pair} had {qty:,.0f} units, closing (1 attempt/day)")
+
+        # Check if halt should be lifted
+        if self.trading_halted and self.halt_until is not None:
+            if self.time >= self.halt_until:
+                self.trading_halted = False
+                self.halt_until = None
+                self.consecutive_losses = 0
+                # CRITICAL: reset peak to current equity so DD starts fresh
+                self.peak_equity = equity
+                self.debug(f"TRADING RESUMED: equity=${equity:,.0f}, peak reset")
+
+        # Trigger DD halt
+        if current_dd > self.max_dd_pct and not self.trading_halted:
+            self.trading_halted = True
+            self.halt_until = self.time + timedelta(days=self.dd_cooldown_days)
+            self.dd_halt_count += 1
+            # Close all open positions — try both our tracking and QC portfolio
+            for pair in list(self.open_positions.keys()):
+                self._exit_trade(pair, self.securities[self.symbols[pair]].price, "DD Halt")
+            # Also force-close anything QC still shows as invested (safe hours only)
+            hour = self.time.hour
+            if hour not in (22, 23, 0, 17):
+                for pair in self.all_pairs:
+                    symbol = self.symbols[pair]
+                    if self.portfolio[symbol].invested:
+                        qty = self.portfolio[symbol].quantity
+                        self.market_order(symbol, -qty)
+            self.debug(
+                f"DD HALT: {current_dd:.1%} > {self.max_dd_pct:.0%}. "
+                f"Closed all, halting until {self.halt_until.strftime('%Y-%m-%d')}. "
+                f"Equity=${equity:,.0f} Peak=${self.peak_equity:,.0f}"
+            )
+            return
+
+        # ── Check existing positions (always, even if halted) ──
         for pair in list(self.open_positions.keys()):
             self._check_exit(pair)
 
-        # ── Check for new entries ──
+        # ── Don't enter new trades if halted ──
+        if self.trading_halted:
+            return
+
+        # ── Session filter ──
         if not self._in_session(self.time):
+            return
+
+        # ── Avoid exact market open hours (causes MOO order errors) ──
+        # Forex market opens Sunday 17:00 ET = ~22:00 UTC
+        # Skip the first hour after any market open/close transition
+        hour = self.time.hour
+        if hour == 22 or hour == 23 or hour == 0:
             return
 
         if len(self.open_positions) >= self.max_positions:
@@ -334,6 +424,10 @@ class ForexZoneBounceMulti(QCAlgorithm):
 
         for pair in self.all_pairs:
             if pair in self.open_positions:
+                continue
+            # CRITICAL: also check if QC thinks we have a position (close may have failed)
+            symbol = self.symbols[pair]
+            if self.portfolio[symbol].invested:
                 continue
             if len(self.open_positions) >= self.max_positions:
                 break
@@ -511,21 +605,34 @@ class ForexZoneBounceMulti(QCAlgorithm):
         min_units = self._get_ibkr_min_units(pair)
 
         if raw_units < min_units:
-            # Check if min lot risk exceeds 3% of equity (safety cap)
+            # Check if min lot risk exceeds 2% of equity (safety cap)
             min_lot_risk = min_units * pnl_per_unit_at_stop
-            if min_lot_risk > equity * 0.03:
+            if min_lot_risk > equity * 0.02:
                 return  # Min lot is too risky for this pair
             raw_units = min_units
 
         units = max(min_units, int(raw_units / 1000) * 1000)
 
-        # Final safety check: cap risk at 3% of equity
+        # HARD CAP: max $50K notional per trade (prevents runaway sizing)
+        # For GBPJPY at 170: 50000/170 = 294 units... that's too low.
+        # Better: cap at max 100K base currency units regardless of pair
+        max_units = 100_000
+        if pair[:3] == "JPY" or pair[3:6] == "JPY":
+            # JPY base pairs (like JPYUSD which doesn't exist) — n/a
+            # JPY quote pairs — units are in base currency, cap still applies
+            pass
+        units = min(units, max_units)
+
+        # Ensure still above IBKR minimum after cap
+        if units < min_units:
+            return
+
+        # Final safety: cap risk at 1.5% of equity (stricter than before)
         actual_risk = units * pnl_per_unit_at_stop
-        if actual_risk > equity * 0.03:
-            units = max(min_units, int((equity * 0.03 / pnl_per_unit_at_stop) / 1000) * 1000)
-            actual_risk = units * pnl_per_unit_at_stop
-            if actual_risk > equity * 0.05:
-                return  # Still too risky even at min lot
+        if actual_risk > equity * 0.015:
+            units = int(equity * 0.015 / pnl_per_unit_at_stop / 1000) * 1000
+            if units < min_units:
+                return
 
         quantity = units * direction
 
@@ -558,10 +665,11 @@ class ForexZoneBounceMulti(QCAlgorithm):
         }
 
         dir_str = "LONG" if direction == 1 else "SHORT"
+        expected_risk_usd = abs(quantity) * pnl_per_unit_at_stop
         self.debug(
             f"{dir_str} {pair} @ {entry_price:.5f} | "
             f"SL: {stop_price:.5f} | TP: {target_price:.5f} | "
-            f"Qty: {quantity:,}"
+            f"Qty: {quantity:,} | Risk$: {expected_risk_usd:,.0f}"
         )
 
     # ══════════════════════════════════════════════════════════════════════
@@ -611,26 +719,45 @@ class ForexZoneBounceMulti(QCAlgorithm):
         pos = self.open_positions[pair]
         symbol = self.symbols[pair]
 
-        # Calculate P&L
-        pnl = (exit_price - pos["entry_price"]) * pos["quantity"]
-        is_win = pnl > 0
+        # Calculate P&L in USD
+        # Price difference is in QUOTE currency, need to convert to USD
+        price_diff = (exit_price - pos["entry_price"]) * pos["direction"]
+        quote_rate = self._get_quote_currency_rate(pair)
+        pnl_usd = price_diff * abs(pos["quantity"]) * quote_rate
+        is_win = pnl_usd > 0
 
-        self.liquidate(symbol, reason)
+        # Close position with market order (liquidate() can fail with MOO error on forex)
+        close_qty = -pos["quantity"]
+        order = self.market_order(symbol, close_qty)
+
+        # If market_order returns None or invalid, try liquidate as fallback
+        if order is None or (hasattr(order, 'status') and order.status == OrderStatus.INVALID):
+            self.liquidate(symbol)
 
         # Record stats
-        self.per_pair_pnl[pair] += pnl
+        self.per_pair_pnl[pair] += pnl_usd
         self.per_pair_trades[pair] += 1
         if is_win:
             self.winning_trades += 1
             self.per_pair_wins[pair] += 1
+            self.consecutive_losses = 0  # reset streak on win
         else:
             self.losing_trades += 1
+            self.consecutive_losses += 1
+            # Consecutive loss halt
+            if self.consecutive_losses >= self.consecutive_loss_halt and not self.trading_halted:
+                self.trading_halted = True
+                self.halt_until = self.time + timedelta(days=self.consecutive_loss_cooldown)
+                self.streak_halt_count += 1
+                self.debug(
+                    f"STREAK HALT: {self.consecutive_losses} consecutive losses. "
+                    f"Pausing until {self.halt_until.strftime('%Y-%m-%d')}"
+                )
 
         dir_str = "LONG" if pos["direction"] == 1 else "SHORT"
         self.debug(
             f"EXIT {dir_str} {pair} @ {exit_price:.5f} | "
-            f"Reason: {reason} | PnL: ${pnl:,.0f} | "
-            f"Held: {pos['bars_held']}H"
+            f"Reason: {reason} | PnL: ${pnl_usd:,.0f} | Held: {pos['bars_held']}H"
         )
 
         del self.open_positions[pair]
@@ -691,7 +818,8 @@ class ForexZoneBounceMulti(QCAlgorithm):
             f"TRADES: Total={self.total_trades} Closed={total_closed} "
             f"W={self.winning_trades} L={self.losing_trades} "
             f"WR={win_rate:.0f}% Longs={self.long_trades} "
-            f"Shorts={self.short_trades} TimeOuts={self.timeout_exits}"
+            f"Shorts={self.short_trades} TimeOuts={self.timeout_exits} "
+            f"DDHalts={self.dd_halt_count} StreakHalts={self.streak_halt_count}"
         )
 
         # Monthly stats
