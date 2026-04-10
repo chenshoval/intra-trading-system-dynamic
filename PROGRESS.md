@@ -143,7 +143,7 @@ All are large/mega-cap with high liquidity and analyst coverage.
 | Strategy | Type | Result | Verdict |
 |----------|------|--------|---------|
 | Forex Zone Bounce | EUR/USD support/resistance mean-reversion | 7% in 4 years, Sharpe -0.93 | KILLED — too few trades, too many filters |
-| Forex Multi-Pair Momentum | 27 FX pairs, per-pair momentum signals | **NEEDS BACKTESTING** | Built April 2026, awaiting QC backtest |
+| Forex Multi-Pair Momentum | 27 FX pairs, per-pair momentum signals | -14.7% (2016-19), -6.3% (2020-22) | KILLED — 28% WR, momentum doesn't work in FX at daily frequency |
 
 ---
 
@@ -534,49 +534,37 @@ Session 4: Deploy enhanced v2 on QC, compare to original v2
 - **Strategy file**: `strategies/monthly_rotator/main_v13_regime.py`
 - **Status**: Deprioritized in favor of multi-strategy combination approach
 
-### Hypothesis 5: Multi-Pair FX Momentum (April 2026) — BUILT, NEEDS BACKTESTING
+### Hypothesis 5: Multi-Pair FX Momentum (April 2026) — KILLED
 
-**Inspiration**: Reddit trader (Kindly_Preference_54) showed 1 year of live trading across 27 forex pairs with Sharpe 3.64, Sortino 4.98, 72% win rate, 611 trades on Darwinex. Top 3 pairs: AUDUSD, GBPCHF, EURJPY. Key insight: diversification across many low-correlated FX pairs is the primary Sharpe multiplier.
+**Inspiration**: Reddit trader showed Sharpe 3.64 across 27 forex pairs on Darwinex.
 
-**Strategy**: Per-pair independent momentum signals (Variant B — not cross-sectional ranking).
-Each of 27 forex pairs scored independently on momentum (40%), trend (30%), trend strength (15%), vol regime (15%). Only trades when |score| > 0.6 (selective entry). Inverse-volatility position sizing per Barroso & Santa-Clara (2015). Daily rebalance.
+**What we built**: Per-pair independent momentum signals (Variant B) across 27 FX pairs.
+Momentum (40%), trend (30%), trend strength (15%), vol regime (15%). Inverse-vol sizing.
 
-**Academic basis**:
-- Menkhoff et al. (2012) "Currency Momentum Strategies" — JFE (quintile sorts, Sharpe ~0.45)
-- Asness, Moskowitz & Pedersen (2013) "Value and Momentum Everywhere" — JF (tercile sorts, Sharpe ~0.6-0.8)
-- Barroso & Santa-Clara (2015) "Beyond the Carry Trade" — risk-managed momentum (inverse-vol sizing)
-- Daniel & Moskowitz (2016) "Momentum Crashes" — dynamic vol scaling to avoid crash risk
-- Fan, Oppenheimer & Yeung (2023) "Currency Momentum and Attention Allocation" — attention-based signals
-- Bianchi, Dickerson & Drew (2024) "Currency Premia and Global Imbalances" — recent carry trade analysis
+**Backtest results**:
+| Period | Return | WR | Sharpe | Longs | Shorts | Circuit Breakers |
+|--------|--------|-----|--------|-------|--------|-----------------|
+| 2016-2019 | **-14.7%** | 28% | -0.26 | 304 | 47 | 1 |
+| 2020-2022 | **-6.3%** | 28% | -0.12 | 266 | 82 | 1 |
 
-**File**: `strategies/forex_momentum_carry/main.py`
-**Class**: `ForexMomentumCarry`
+**Why it failed**:
+1. FX momentum is much weaker than equity momentum — academic Sharpe ~0.45 (Menkhoff 2012), our implementation captured even less
+2. 28% win rate = consistently buying tops / selling bottoms (momentum whipsaw)
+3. Massive long bias (304 longs vs 47 shorts in P1) — strategy rarely shorted
+4. Worst losers (CADCHF -$4.3K, GBPUSD -$3.6K, EURGBP -$2.2K) overtrade and lose on every trade
+5. Best winners (EURNZD +$2.2K, GBPCHF +$1.8K) trade rarely — few trades = less noise
 
-**Capital requirements (IBKR, min 25K units/pair)**:
-| Account | Active Pairs | Max Positions | Viable? |
-|---------|-------------|---------------|---------|
-| <$30K | 7 majors | 5 | Marginal — high leverage |
-| $50K | 15 (majors + top crosses) | 10 | **Minimum recommended** |
-| $100K | 27 (full universe) | 20 | **Target — full diversification** |
-| $200K+ | 27 | 20 | Ideal — can increase per-pair size |
+**Key lesson**: The Reddit poster's 72% win rate is INCOMPATIBLE with trend-following.
+He's almost certainly doing mean-reversion, shorter timeframes, or something discretionary.
+Pure momentum on daily FX at IBKR lot sizes doesn't work.
 
-**Why this matters**: Completely uncorrelated with ALL our equity strategies. Different asset class, different signals, different drivers (central bank policy vs corporate earnings). Would be a true second independent income stream per the CLAUDE.md philosophy.
+**What would need to change to try again (future, not now)**:
+- Pivot to mean-reversion signals (RSI oversold/overbought, Bollinger band bounce)
+- Use Oanda for micro-lots (eliminates IBKR minimum lot constraint)
+- Shorter holding period (intraday or 1-3 days instead of our multi-week holds)
+- Add carry trade signal (interest rate differential — we had this as a "proxy" but never implemented real swap rates)
 
-**Status**: Code complete. **NEXT: Backtest on QC (free tier, 3 walk-forward periods).**
-- Period 1: 2016-2019 (development)
-- Period 2: 2020-2022 (out-of-sample, includes COVID)
-- Period 3: 2023-2025 (rate hike cycle)
-
-**Updated deployment plan with forex:**
-```
-Now → $5K:      Hold SPY manually (no algo)
-$5K:            Deploy v2 (equities)
-$5K → $50K:     v2 standalone, then v5 combined at $25K+
-$50K+:          Add forex as 2nd uncorrelated stream alongside equity strategy
-$100K+:         Full forex (27 pairs) + full v5 (4-strat equity/commodity/dividend/bond)
-```
-
-**Note on Oanda alternative**: If we want forex on smaller accounts ($5-10K), can switch from IBKR to Oanda broker (supports micro-lots / 1-unit trades). Same strategy code, only `_compute_lot_size()` and brokerage model change.
+**File**: `strategies/forex_momentum_carry/main.py` — kept for reference, DO NOT DEPLOY.
 
 ### Other Future Ideas
 1. **Global TabNet directional classifier**: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (momentum, volatility, cross-stock, macro — NOT trade metadata like v5 used). Walk-forward validation mandatory. Could run as second uncorrelated strategy alongside momentum rotator.

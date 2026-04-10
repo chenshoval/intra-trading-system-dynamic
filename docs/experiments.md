@@ -430,11 +430,24 @@ Chose Variant B because:
 - `strategies/forex_momentum_carry/main.py` (class: `ForexMomentumCarry`)
 - Plan: `~/.claude/plans/mossy-wondering-locket.md`
 
-### Status: NEEDS BACKTESTING
-Next step: Upload to QC, run 3 walk-forward periods (2016-2019, 2020-2022, 2023-2025).
-Free tier is sufficient (daily resolution forex data via Oanda).
+### Status: KILLED — Momentum doesn't work in FX at daily frequency
 
-### Capital Reality
-Can't run live at current $2K on IBKR (min 25K units/pair = need $50K+).
-This is a future deployment — backtest now, deploy at $50K+.
-Alternative: Oanda broker for micro-lots at $5-10K, but requires broker switch.
+**Results**:
+| Period | Return | WR | Sharpe | Longs | Shorts |
+|--------|--------|-----|--------|-------|--------|
+| 2016-2019 | -14.7% | 28% | -0.26 | 304 | 47 |
+| 2020-2022 | -6.3% | 28% | -0.12 | 266 | 82 |
+
+**Root cause**: 28% win rate = buying tops, selling bottoms. FX momentum at daily frequency is too weak. Massive long bias (6:1 longs vs shorts). Strategy overtraded losing pairs (CADCHF: 52 trades, 19% WR, -$4.3K) while winners traded rarely (GBPCHF: 4 trades, 25% WR, +$1.3K).
+
+**Iterations tried**:
+- v1.0: threshold=0.60, risk=0.5%, DD breaker=5%, flat 25K min lots → -13.6%, 0% tracked WR (P&L bug)
+- v1.1: threshold=0.35, risk=0.8%, DD=10%, per-currency lot mins, FX-scaled signals → -14.7% (P1), -6.3% (P2)
+
+**The Reddit poster's 72% WR is incompatible with momentum.** He's doing something fundamentally different — likely mean-reversion or shorter timeframe.
+
+**Bugs fixed during development** (useful for future QC forex strategies):
+- ATR needs `MovingAverageType.SIMPLE` parameter: `self.atr(symbol, period, MovingAverageType.SIMPLE, Resolution.DAILY)`
+- BrokerageName uses SCREAMING_SNAKE_CASE: `BrokerageName.INTERACTIVE_BROKERS_BROKERAGE`
+- IBKR min lot varies by currency: NZD=35K, GBP/EUR=20K, JPY=2.5M, others=25K
+- P&L tracking: read `unrealized_profit` BEFORE `liquidate()`, or use entry price fallback

@@ -43,11 +43,11 @@ class ForexMomentumCarry(QCAlgorithm):
         # ══════════════════════════════════════════════════════════════
         # Test period (change for walk-forward validation)
         # ══════════════════════════════════════════════════════════════
-        self.set_start_date(2016, 1, 1)
-        self.set_end_date(2019, 12, 31)
+        self.set_start_date(2020, 1, 1)
+        self.set_end_date(2022, 12, 31)
         self.set_cash(100_000)
 
-        self.set_brokerage_model(BrokerageName.InteractiveBrokersBrokerage)
+        self.set_brokerage_model(BrokerageName.INTERACTIVE_BROKERS_BROKERAGE)
 
         # ══════════════════════════════════════════════════════════════
         # Universe: 27 Forex Pairs
@@ -97,24 +97,31 @@ class ForexMomentumCarry(QCAlgorithm):
         self.w_vol_regime = 0.15
 
         # Entry/exit thresholds
-        self.entry_threshold = 0.60         # |score| > this to enter
-        self.exit_threshold = 0.20          # |score| < this to exit (neutral zone)
+        self.entry_threshold = 0.35         # |score| > this to enter (was 0.60 — too selective for FX)
+        self.exit_threshold = 0.10          # |score| < this to exit (neutral zone)
 
         # ══════════════════════════════════════════════════════════════
         # Position sizing (IBKR)
         # ══════════════════════════════════════════════════════════════
-        self.risk_per_pair = 0.005          # 0.5% of equity per pair
-        self.ibkr_min_units = 25_000        # IBKR minimum forex lot
-        self.max_per_pair_pct = 0.05        # 5% of equity max per pair
+        self.risk_per_pair = 0.008          # 0.8% of equity per pair (was 0.5% — underinvested)
+        self.max_per_pair_pct = 0.08        # 8% of equity max per pair (was 5%)
         self.max_gross_exposure_pct = 1.00  # 100% max gross exposure
         self.max_positions = 20             # max simultaneous positions
+
+        # IBKR minimum lot sizes vary by base currency
+        # Source: IBKR order size limits error messages
+        self.ibkr_min_by_currency = {
+            "USD": 25_000, "EUR": 20_000, "GBP": 20_000,
+            "JPY": 2_500_000, "CHF": 25_000, "AUD": 25_000,
+            "NZD": 35_000, "CAD": 25_000,
+        }
 
         # ══════════════════════════════════════════════════════════════
         # Risk management
         # ══════════════════════════════════════════════════════════════
-        self.dd_circuit_breaker = 0.05      # 5% DD -> halve all
-        self.per_pair_max_loss = 0.015      # 1.5% equity loss per pair -> cut
-        self.vol_scaling_threshold = 2.0    # portfolio vol > 2x avg -> halve
+        self.dd_circuit_breaker = 0.10      # 10% DD -> halve all (was 5% — too tight for FX)
+        self.per_pair_max_loss = 0.02       # 2% equity loss per pair -> cut (was 1.5%)
+        self.vol_scaling_threshold = 2.5    # portfolio vol > 2.5x avg -> halve (was 2.0)
         self.vol_scaling_lookback = 63      # days for average vol
 
         # ══════════════════════════════════════════════════════════════
@@ -159,11 +166,12 @@ class ForexMomentumCarry(QCAlgorithm):
             self.symbols[pair] = forex.symbol
 
             # Per-pair indicators
+            # ATR signature: atr(symbol, period, movingAverageType, resolution)
             self.pair_atr_fast[pair] = self.atr(
-                forex.symbol, self.atr_fast, Resolution.DAILY
+                forex.symbol, self.atr_fast, MovingAverageType.SIMPLE, Resolution.DAILY
             )
             self.pair_atr_slow[pair] = self.atr(
-                forex.symbol, self.atr_slow, Resolution.DAILY
+                forex.symbol, self.atr_slow, MovingAverageType.SIMPLE, Resolution.DAILY
             )
             self.pair_sma[pair] = self.sma(
                 forex.symbol, self.sma_period, Resolution.DAILY
@@ -264,8 +272,9 @@ class ForexMomentumCarry(QCAlgorithm):
         # Normalized to [-1, +1] using a sigmoid-like transform
         if len(closes) >= self.mom_period + 1:
             mom_return = (price_now / closes[-self.mom_period - 1]) - 1.0
-            # Scale: typical FX monthly return is +-3%, so 0.03 -> ~0.7 score
-            mom_score = np.tanh(mom_return / 0.03)
+            # Scale: typical FX monthly return is +-1.5%, so 0.015 -> ~0.7 score
+            # (was 0.03 — too insensitive for FX, most signals stayed near 0)
+            mom_score = np.tanh(mom_return / 0.015)
         else:
             mom_score = 0.0
 
@@ -274,7 +283,9 @@ class ForexMomentumCarry(QCAlgorithm):
         if sma_val > 0:
             # Distance from SMA as fraction, capped
             trend_distance = (price_now - sma_val) / sma_val
-            trend_score = np.clip(trend_distance / 0.02, -1.0, 1.0)
+            # FX typically deviates 0.5-1.5% from SMA, so 0.01 -> full score
+            # (was 0.02 — too insensitive)
+            trend_score = np.clip(trend_distance / 0.01, -1.0, 1.0)
         else:
             trend_score = 0.0
 
@@ -326,6 +337,12 @@ class ForexMomentumCarry(QCAlgorithm):
     # Position sizing (IBKR-compatible, inverse-volatility)
     # ══════════════════════════════════════════════════════════════════════
 
+    def _get_ibkr_min_units(self, pair):
+        """Get IBKR minimum order size for the base currency of a pair.
+        Base currency is the first 3 chars (e.g., EURUSD -> EUR, NZDJPY -> NZD)."""
+        base_currency = pair[:3]
+        return self.ibkr_min_by_currency.get(base_currency, 25_000)
+
     def _compute_lot_size(self, pair, direction):
         """Compute position size in base currency units.
         Uses inverse-volatility sizing per Barroso & Santa-Clara (2015).
@@ -344,21 +361,22 @@ class ForexMomentumCarry(QCAlgorithm):
         if atr_val <= 0 or equity <= 0:
             return 0
 
+        min_units = self._get_ibkr_min_units(pair)
+
         # Risk-based sizing: how many units so that 1 ATR move = risk_per_pair * equity
         risk_amount = equity * self.risk_per_pair
         raw_units = risk_amount / atr_val
 
-        # Apply IBKR minimum
-        if raw_units < self.ibkr_min_units:
+        # Apply IBKR minimum for this currency
+        if raw_units < min_units:
             # Check if even minimum lot exceeds our per-pair max
-            min_lot_notional = self.ibkr_min_units * self.securities[self.symbols[pair]].price
+            min_lot_notional = min_units * self.securities[self.symbols[pair]].price
             if min_lot_notional > equity * self.max_per_pair_pct:
                 return 0  # Can't trade this pair — too large even at min lot
-            raw_units = self.ibkr_min_units
+            raw_units = min_units
 
-        # Round to IBKR-compatible increments (multiples of 25K or nearest 1000)
-        # IBKR allows increments of 1 unit, but round to 1000 for cleanliness
-        units = max(self.ibkr_min_units, int(raw_units / 1000) * 1000)
+        # Round to nearest 1000 (IBKR allows 1-unit increments, but keep clean)
+        units = max(min_units, int(raw_units / 1000) * 1000)
 
         # Cap at max per-pair percentage
         price = self.securities[self.symbols[pair]].price
@@ -366,7 +384,7 @@ class ForexMomentumCarry(QCAlgorithm):
             notional = units * price
             max_notional = equity * self.max_per_pair_pct
             if notional > max_notional:
-                units = max(self.ibkr_min_units, int(max_notional / price / 1000) * 1000)
+                units = max(min_units, int(max_notional / price / 1000) * 1000)
 
         return units * direction
 
@@ -431,23 +449,32 @@ class ForexMomentumCarry(QCAlgorithm):
 
             if unrealized_pnl < pair_loss_limit:
                 self.liquidate(symbol, f"Per-pair stop: {pair}")
-                self._record_trade_exit(pair)
+                self._record_trade_exit(pair)  # OK here — entry price fallback handles it
                 self.debug(
                     f"PAIR STOP: {pair} loss=${unrealized_pnl:,.0f} "
                     f"< limit=${pair_loss_limit:,.0f}"
                 )
 
     def _reduce_all_positions(self, factor):
-        """Reduce all open positions by factor (e.g., 0.5 = halve)."""
+        """Reduce all open positions by factor (e.g., 0.5 = halve).
+        If reduced size falls below IBKR minimum, liquidate entirely."""
         for pair in list(self.long_positions | self.short_positions):
             symbol = self.symbols[pair]
             if self.portfolio[symbol].invested:
                 current_qty = self.portfolio[symbol].quantity
                 target_qty = int(current_qty * factor)
-                delta = target_qty - int(current_qty)
-                if abs(delta) > 0:
-                    self.market_order(symbol, delta)
+                min_units = self._get_ibkr_min_units(pair)
+
+                # If reduced position would be below IBKR minimum, liquidate fully
+                if abs(target_qty) < min_units:
+                    self.liquidate(symbol)
+                    self._record_trade_exit(pair)
                     self.total_trades += 1
+                else:
+                    delta = target_qty - int(current_qty)
+                    if abs(delta) >= min_units:  # Only submit if delta meets minimum
+                        self.market_order(symbol, delta)
+                        self.total_trades += 1
 
     # ══════════════════════════════════════════════════════════════════════
     # Daily rebalance — main trading logic
@@ -510,20 +537,20 @@ class ForexMomentumCarry(QCAlgorithm):
         selected_short = {p for p, _, d in selected if d == -1}
 
         # ── Close positions that should be flat ──
-        # Close positions not in selected + positions in explicit flat zone
+        # Record P&L before liquidation (entry price fallback handles post-liquidation reads)
         for pair in list(self.long_positions):
             if pair not in selected_long or pair in desired_flat:
                 symbol = self.symbols[pair]
                 if self.portfolio[symbol].invested:
-                    self.liquidate(symbol)
                     self._record_trade_exit(pair)
+                    self.liquidate(symbol)
 
         for pair in list(self.short_positions):
             if pair not in selected_short or pair in desired_flat:
                 symbol = self.symbols[pair]
                 if self.portfolio[symbol].invested:
-                    self.liquidate(symbol)
                     self._record_trade_exit(pair)
+                    self.liquidate(symbol)
 
         # ── Check gross exposure budget ──
         current_gross = sum(
@@ -550,9 +577,9 @@ class ForexMomentumCarry(QCAlgorithm):
             current_qty = int(self.portfolio[symbol].quantity)
 
             if pair in self.short_positions:
-                # Reversing from short to long: liquidate first
-                self.liquidate(symbol)
+                # Reversing from short to long: record P&L then liquidate
                 self._record_trade_exit(pair)
+                self.liquidate(symbol)
                 current_qty = 0
 
             target_qty = lot_size
@@ -590,8 +617,8 @@ class ForexMomentumCarry(QCAlgorithm):
 
             if pair in self.long_positions:
                 # Reversing from long to short
-                self.liquidate(symbol)
                 self._record_trade_exit(pair)
+                self.liquidate(symbol)
                 current_qty = 0
 
             target_qty = lot_size  # negative
@@ -641,9 +668,18 @@ class ForexMomentumCarry(QCAlgorithm):
     # ══════════════════════════════════════════════════════════════════════
 
     def _record_trade_exit(self, pair):
-        """Record a closed trade and update per-pair stats."""
+        """Record a closed trade and update per-pair stats.
+        Must be called BEFORE liquidate() since unrealized_profit gets zeroed after."""
         symbol = self.symbols[pair]
         pnl = self.portfolio[symbol].unrealized_profit
+
+        # If unrealized is already 0 (sometimes happens), estimate from entry price
+        if pnl == 0 and pair in self.entry_prices:
+            current_price = self.securities[symbol].price
+            entry_price = self.entry_prices[pair]
+            qty = self.portfolio[symbol].quantity
+            if entry_price > 0 and qty != 0:
+                pnl = (current_price - entry_price) * qty
 
         self.per_pair_pnl[pair] += pnl
         self.per_pair_trades[pair] += 1
