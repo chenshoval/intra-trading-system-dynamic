@@ -1,4 +1,4 @@
-"""FX Pairs Trading — Hypothesis 5c
+"""FX Pairs Trading v2 — Hypothesis 5c
 
 Trades the SPREAD between cointegrated forex pairs, not individual pair direction.
 The spread is stationary (mean-reverting) even when individual prices are not.
@@ -13,7 +13,16 @@ Methodology (Gatev et al. 2006 adapted for FX):
 - Trading period: 126 days (6 months) — trade the spread on confirmed pairs
 - Roll every 6 months: re-run formation, update pair list
 - Entry: z-score > 2.0 or < -2.0
-- Exit: z-score crosses 0 (mean reverted) or stop at z=3.5
+- Exit: z-score crosses 0.5 (mean reverted) or stop at z=3.5
+
+v2 changes from v1 (-9.23%, 53% WR, Sharpe -0.14):
+- Weekend/safe-hour guard on ALL orders (not just orphan cleanup) — prevents MOO errors
+- Per-currency exposure limit (max 2 spreads per currency) — prevents AUDCHF×4 concentration
+- Dynamic time stop per pair (2×half_life, capped 10-25d) — respects pair rhythm
+- Relaxed streak halt (7 losses / 5d cooldown vs 5/10) — 53% WR makes 5-streaks normal
+- Don't force-close on pair drop — let positions run to natural exit
+- Reduced risk per spread (1.5% vs 2%)
+- Pending exit queue for orders blocked by unsafe hours
 
 Academic basis:
 - Korniejczuk & Slepaczuk (2024): Graph clustering pairs, Kelly sizing
@@ -65,16 +74,16 @@ class ForexPairsTrading(QCAlgorithm):
         self.z_stop = 3.5                   # stop loss when |z-score| > 3.5 (diverging)
         self.spread_lookback = 60           # rolling window for z-score calculation
         self.max_spread_positions = 4       # max 4 spread trades (= 8 forex legs)
-        self.max_hold_days = 15             # close after 15 days if not mean-reverted
         self.rebalance_months = 6           # re-evaluate pairs every 6 months
         self.min_coint_pvalue = 0.05        # cointegration significance threshold
         self.max_half_life = 25             # only trade pairs with HL < 25 days
         self.min_half_life = 2              # skip pairs that revert too fast (noise)
+        self.max_currency_exposure = 2      # v2: max spreads any single currency can be in
 
         # ══════════════════════════════════════════════════════════════
         # Position sizing
         # ══════════════════════════════════════════════════════════════
-        self.risk_per_spread = 0.02         # 2% equity risk per spread trade
+        self.risk_per_spread = 0.015        # v2: 1.5% equity risk per spread (was 2%)
         self.max_units = 100_000            # hard cap per leg
         self.ibkr_min_by_currency = {
             "USD": 25_000, "EUR": 20_000, "GBP": 20_000,
@@ -87,8 +96,8 @@ class ForexPairsTrading(QCAlgorithm):
         # ══════════════════════════════════════════════════════════════
         self.max_dd_pct = 0.15
         self.dd_cooldown_days = 20
-        self.consecutive_loss_halt = 5
-        self.consecutive_loss_cooldown = 10
+        self.consecutive_loss_halt = 7      # v2: was 5 — 53% WR makes 5-streaks normal
+        self.consecutive_loss_cooldown = 5  # v2: was 10 — less time offline
 
         # ══════════════════════════════════════════════════════════════
         # Data structures
@@ -100,7 +109,13 @@ class ForexPairsTrading(QCAlgorithm):
         self.last_formation_date = None
 
         # Open spread positions
-        self.open_spreads = {}              # key -> {pair_a, pair_b, direction, z_entry, entry_time, days_held}
+        self.open_spreads = {}              # key -> {pair_a, pair_b, direction, z_entry, entry_time, days_held, pair_info_snapshot, max_hold}
+
+        # v2: Per-currency exposure tracking (prevent AUDCHF×4 concentration)
+        self.currency_exposure = defaultdict(int)  # currency -> count of spreads it's in
+
+        # v2: Pending exits queue (for orders blocked by unsafe hours)
+        self.pending_exits = []             # list of (key, reason) to retry next safe bar
 
         # Drawdown tracking
         self.peak_equity = 100_000
@@ -140,10 +155,11 @@ class ForexPairsTrading(QCAlgorithm):
         self.set_warm_up(timedelta(days=self.formation_days + 30))
 
         self.debug(
-            f">>> FX PAIRS TRADING v1: {len(self.all_pairs)} pairs, "
+            f">>> FX PAIRS TRADING v2: {len(self.all_pairs)} pairs, "
             f"formation={self.formation_days}d, z_entry={self.z_entry}, "
             f"z_exit={self.z_exit}, z_stop={self.z_stop}, "
-            f"max_spreads={self.max_spread_positions}"
+            f"max_spreads={self.max_spread_positions}, "
+            f"risk={self.risk_per_spread:.1%}, max_ccy_exp={self.max_currency_exposure}"
         )
 
     # ══════════════════════════════════════════════════════════════════════
@@ -312,6 +328,42 @@ class ForexPairsTrading(QCAlgorithm):
         return z_score
 
     # ══════════════════════════════════════════════════════════════════════
+    # Safe hour check (prevents MOO errors on forex)
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _is_safe_hour(self):
+        """Check if current time is safe to submit forex orders.
+        Returns False on weekends and during market open/close transition hours
+        where IBKR rejects orders with 'Market-on-Open not supported for Forex'."""
+        dow = self.time.weekday()  # Monday=0, Sunday=6
+        if dow in (5, 6):  # Saturday=5, Sunday=6
+            return False
+        hour = self.time.hour
+        if hour in (17, 22, 23, 0):  # FX market open/close transition
+            return False
+        return True
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Currency exposure helpers (v2 — prevent concentration)
+    # ══════════════════════════════════════════════════════════════════════
+
+    def _get_currencies(self, pair_a, pair_b):
+        """Return set of all currencies involved in a spread."""
+        return {pair_a[:3], pair_a[3:], pair_b[:3], pair_b[3:]}
+
+    def _update_currency_exposure(self, pair_a, pair_b, delta):
+        """Increment or decrement currency exposure counts."""
+        for ccy in self._get_currencies(pair_a, pair_b):
+            self.currency_exposure[ccy] += delta
+
+    def _can_enter_spread(self, pair_a, pair_b):
+        """Check if entering this spread would exceed currency exposure limits."""
+        for ccy in self._get_currencies(pair_a, pair_b):
+            if self.currency_exposure[ccy] >= self.max_currency_exposure:
+                return False
+        return True
+
+    # ══════════════════════════════════════════════════════════════════════
     # Daily check: formation, entries, exits
     # ══════════════════════════════════════════════════════════════════════
 
@@ -320,6 +372,7 @@ class ForexPairsTrading(QCAlgorithm):
             return
 
         equity = self.portfolio.total_portfolio_value
+        safe_hour = self._is_safe_hour()
 
         # Monthly tracking
         current_month = f"{self.time.year}-{self.time.month:02d}"
@@ -336,15 +389,20 @@ class ForexPairsTrading(QCAlgorithm):
 
         current_dd = (self.peak_equity - equity) / self.peak_equity if self.peak_equity > 0 else 0
 
-        # Orphan cleanup (1 attempt/pair/day, safe hours only)
+        # ── Process pending exits first (v2: orders that were blocked by unsafe hours) ──
+        if safe_hour and self.pending_exits:
+            for key, reason in list(self.pending_exits):
+                if key in self.open_spreads:
+                    self._exit_spread(key, f"{reason} (delayed)")
+            self.pending_exits = []
+
+        # ── Orphan cleanup (1 attempt/pair/day, safe hours only) ──
         if not hasattr(self, '_orphan_cleanup_dates'):
             self._orphan_cleanup_dates = {}
         today = self.time.date()
-        hour = self.time.hour
-        if hour not in (17, 22, 23, 0):
+        if safe_hour:
             for pair in self.all_pairs:
                 symbol = self.symbols[pair]
-                # Check if this pair is part of any open spread
                 pair_in_spread = any(
                     pair in (s["pair_a"], s["pair_b"]) for s in self.open_spreads.values()
                 )
@@ -368,8 +426,13 @@ class ForexPairsTrading(QCAlgorithm):
             self.trading_halted = True
             self.halt_until = self.time + timedelta(days=self.dd_cooldown_days)
             self.dd_halt_count += 1
-            for key in list(self.open_spreads.keys()):
-                self._exit_spread(key, "DD Halt")
+            if safe_hour:
+                for key in list(self.open_spreads.keys()):
+                    self._exit_spread(key, "DD Halt")
+            else:
+                # Queue exits for next safe hour
+                for key in list(self.open_spreads.keys()):
+                    self.pending_exits.append((key, "DD Halt"))
             self.debug(
                 f"DD HALT: {current_dd:.1%} > {self.max_dd_pct:.0%}. "
                 f"Equity=${equity:,.0f} Peak=${self.peak_equity:,.0f}"
@@ -393,39 +456,53 @@ class ForexPairsTrading(QCAlgorithm):
             spread = self.open_spreads[key]
             spread["days_held"] += 1
 
-            # Find the pair_info for this spread
-            pair_info = None
-            for p in self.active_pairs:
-                if p["pair_a"] == spread["pair_a"] and p["pair_b"] == spread["pair_b"]:
-                    pair_info = p
-                    break
+            # v2: Use stored pair_info snapshot for z-score (survives pair drop)
+            pair_info = spread.get("pair_info_snapshot")
 
+            # Fallback: look up in active pairs
             if pair_info is None:
-                # Pair no longer in active list after re-formation — close it
-                self._exit_spread(key, "Pair Dropped")
+                for p in self.active_pairs:
+                    if p["pair_a"] == spread["pair_a"] and p["pair_b"] == spread["pair_b"]:
+                        pair_info = p
+                        break
+
+            # v2: Don't force-close on pair drop — let it run to time stop
+            if pair_info is None:
+                max_hold = spread.get("max_hold", 15)
+                if spread["days_held"] >= max_hold:
+                    if safe_hour:
+                        self._exit_spread(key, "Time Stop (pair dropped)")
+                    else:
+                        self.pending_exits.append((key, "Time Stop (pair dropped)"))
                 continue
 
             z = self._compute_z_score(pair_info)
             if z is None:
                 continue
 
+            exit_reason = None
+
             # Exit: mean reverted
             if abs(z) < self.z_exit:
-                self._exit_spread(key, "Mean Reverted")
-                continue
-
+                exit_reason = "Mean Reverted"
             # Stop: diverging further
-            if (spread["direction"] == 1 and z > self.z_stop) or \
-               (spread["direction"] == -1 and z < -self.z_stop):
-                self._exit_spread(key, "Z-Stop")
-                continue
+            elif (spread["direction"] == 1 and z > self.z_stop) or \
+                 (spread["direction"] == -1 and z < -self.z_stop):
+                exit_reason = "Z-Stop"
+            # v2: Dynamic time stop per pair
+            elif spread["days_held"] >= spread.get("max_hold", 15):
+                exit_reason = "Time Stop"
 
-            # Time stop
-            if spread["days_held"] >= self.max_hold_days:
-                self._exit_spread(key, "Time Stop")
-                continue
+            if exit_reason:
+                if safe_hour:
+                    self._exit_spread(key, exit_reason)
+                else:
+                    self.pending_exits.append((key, exit_reason))
 
-        # ── Check for new entries ──
+        # ── Check for new entries (only during safe hours) ──
+        if not safe_hour:
+            return
+
         if len(self.open_spreads) >= self.max_spread_positions:
             return
 
@@ -441,6 +518,10 @@ class ForexPairsTrading(QCAlgorithm):
             sym_a = self.symbols[pair_info["pair_a"]]
             sym_b = self.symbols[pair_info["pair_b"]]
             if self.portfolio[sym_a].invested or self.portfolio[sym_b].invested:
+                continue
+
+            # v2: Check per-currency exposure limit
+            if not self._can_enter_spread(pair_info["pair_a"], pair_info["pair_b"]):
                 continue
 
             z = self._compute_z_score(pair_info)
@@ -463,6 +544,10 @@ class ForexPairsTrading(QCAlgorithm):
         pair_b = pair_info["pair_b"]
         beta = pair_info["hedge_ratio"]
         key = f"{pair_a}/{pair_b}"
+
+        # v2: Safe hour guard (redundant with daily_check but defensive)
+        if not self._is_safe_hour():
+            return
 
         equity = self.portfolio.total_portfolio_value
         risk_amount = equity * self.risk_per_spread
@@ -501,6 +586,10 @@ class ForexPairsTrading(QCAlgorithm):
         self.market_order(self.symbols[pair_a], qty_a)
         self.market_order(self.symbols[pair_b], qty_b)
 
+        # v2: Dynamic time stop based on pair's half-life
+        half_life = pair_info.get("half_life", 7.5)
+        max_hold = min(25, max(10, int(half_life * 2)))
+
         self.total_trades += 2  # two legs
         self.open_spreads[key] = {
             "pair_a": pair_a,
@@ -513,11 +602,16 @@ class ForexPairsTrading(QCAlgorithm):
             "qty_b": qty_b,
             "entry_price_a": price_a,
             "entry_price_b": price_b,
+            "pair_info_snapshot": dict(pair_info),  # v2: snapshot for z-score after pair drop
+            "max_hold": max_hold,                   # v2: dynamic time stop per pair
         }
+
+        # v2: Update currency exposure
+        self._update_currency_exposure(pair_a, pair_b, +1)
 
         dir_str = "BUY" if direction == 1 else "SELL"
         self.debug(
-            f"{dir_str} SPREAD {key} | z={z_score:.2f} | "
+            f"{dir_str} SPREAD {key} | z={z_score:.2f} HL={half_life:.0f}d maxH={max_hold}d | "
             f"A: {qty_a:,} @ {price_a:.5f} | B: {qty_b:,} @ {price_b:.5f}"
         )
 
@@ -527,6 +621,11 @@ class ForexPairsTrading(QCAlgorithm):
 
     def _exit_spread(self, key, reason):
         if key not in self.open_spreads:
+            return
+
+        # v2: Safe hour guard — queue for later if unsafe
+        if not self._is_safe_hour():
+            self.pending_exits.append((key, reason))
             return
 
         spread = self.open_spreads[key]
@@ -576,6 +675,9 @@ class ForexPairsTrading(QCAlgorithm):
             f"EXIT SPREAD {key} | {reason} | PnL: ${total_pnl:,.0f} | "
             f"Held: {spread['days_held']}d | z_entry={spread['z_entry']:.2f}"
         )
+
+        # v2: Decrement currency exposure
+        self._update_currency_exposure(spread["pair_a"], spread["pair_b"], -1)
 
         del self.open_spreads[key]
 

@@ -40,7 +40,7 @@
 | **$20K+** | Evaluate: v2 or v5 | `main_v2.py` or `combined_4strat_riskparity/main_v5.py` | v2 if bull, v5 if want bear protection |
 | **$25K+** | Combined 4-strat v5 | `combined_4strat_riskparity/main_v5.py` | 27 positions across 4 asset classes |
 | **$50K+** | v5 at full strength | `combined_4strat_riskparity/main_v5.py` | Proper diversification everywhere |
-| **$50K+** | + FX Momentum (2nd stream) | `forex_momentum_carry/main.py` | 27 FX pairs, completely uncorrelated to equities |
+| **$50K+** | + FX Carry Trade (2nd stream) | `forex_carry/main.py` | G10 carry trade, uncorrelated to equities |
 
 ### Why the Old Scaling Ladder Was Wrong
 The previous plan (v10 at $500 → v11 at $2K → v2 at $20K) was tested and failed:
@@ -145,6 +145,7 @@ All are large/mega-cap with high liquidity and analyst coverage.
 | Forex Zone Bounce | EUR/USD support/resistance mean-reversion | 7% in 4 years, Sharpe -0.93 | KILLED — too few trades, too many filters |
 | Forex Multi-Pair Momentum | 27 FX pairs, per-pair momentum signals | -14.7% (2016-19), -6.3% (2020-22) | KILLED — 28% WR, momentum doesn't work in FX at daily frequency |
 | Forex Zone Bounce Multi | 27 FX pairs, S/R zone mean-reversion | -46.4% (2016-20) after 7 bug-fix iterations | KILLED — no edge after costs. Infrastructure now solid for future FX. |
+| Forex Pairs Trading | 27 FX pairs, cointegrated spread trading | -9.2% (v1), -16.4% (v2) on 2016-20 | KILLED — spreads too small vs costs, 53% WR but losses > wins |
 
 ---
 
@@ -576,21 +577,18 @@ Strategy has no edge after transaction costs — mean-reversion fails per Moon e
 **Key outcome**: FX infrastructure is now robust and reusable. All IBKR forex bugs documented.
 **File**: `strategies/forex_zone_bounce_multi/main.py` — kept for infrastructure, DO NOT DEPLOY.
 
-### Hypothesis 5c: FX Pairs Trading (Planned)
+### Hypothesis 5c: FX Pairs Trading (April 2026) — KILLED
 
-**Concept**: Instead of predicting "will EURUSD go up?" (momentum) or "will it bounce at support?" (zone bounce),
-predict "will the EURUSD-GBPUSD spread narrow?" — mean-reversion on a STATIONARY spread, not a non-stationary price.
+**Concept**: Trade the spread between cointegrated FX pairs — mean-reversion on a STATIONARY spread.
 
-**Why this is different from what failed**:
-- Momentum failed because FX prices don't trend at daily frequency
-- Zone bounce failed because mean-reversion on absolute prices costs too much in fees
-- Pairs trading works on the SPREAD between correlated pairs, which IS stationary
-- 27 pairs = 351 possible pair combinations for cointegration testing
-- Natural groups: USD pairs (EURUSD/GBPUSD), commodity currencies (AUD/NZD), JPY crosses
+**v1 results**: -9.23%, 53% WR, 196 spreads, Sharpe -0.14. MOO errors created orphans, concentrated AUDCHF exposure.
+**v2 results**: -16.38%, after fixing MOO errors, adding currency exposure limits, dynamic time stops, relaxed streak halt.
+v2 was actually worse — more conservative = losing more slowly in a strategy with no edge.
 
-**Academic basis**: Korniejczuk 2024 (graph clustering pairs, Warsaw group), Milstein 2022 (neural Kalman)
-**Infrastructure**: Reuse all IBKR forex plumbing from zone bounce (bugs already fixed)
-**Status**: Planning phase
+**Why it failed**: Cointegration is statistically significant but economically insignificant. Spread movements are too small relative to bid-ask spread and IBKR lot sizes. Moon et al. (2019) confirmed: mean-reversion fails with realistic transaction costs.
+
+**Key outcome**: All IBKR forex infrastructure is now battle-tested. Safe-hour checks, orphan cleanup, JPY sizing, currency exposure tracking — all reusable.
+**Files**: `strategies/forex_pairs_trading/main.py` — kept for infrastructure reference, DO NOT DEPLOY.
 
 ### Other Future Ideas
 1. **Global TabNet directional classifier**: From the dual-stream paper. Stream B achieved ~40% annual. Requires proper features (momentum, volatility, cross-stock, macro — NOT trade metadata like v5 used). Walk-forward validation mandatory. Could run as second uncorrelated strategy alongside momentum rotator.
